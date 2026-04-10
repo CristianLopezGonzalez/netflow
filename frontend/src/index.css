@@ -1,0 +1,382 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-main: #f5efe4;
+  --bg-spot-1: #ffe6b8;
+  --bg-spot-2: #c9dcff;
+  --bg-gradient-tail: #edf5f2;
+  --ink: #1f2225;
+  --ink-soft: #4f5b63;
+  --focus-ring: rgba(37, 99, 235, 0.35);
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.2);
+  --glass-surface-1: rgba(255, 255, 255, 0.76);
+  --glass-surface-2: rgba(255, 255, 255, 0.64);
+  --glass-surface-3: rgba(248, 250, 252, 0.72);
+  --glass-line: rgba(27, 31, 36, 0.16);
+  --glass-line-strong: rgba(27, 31, 36, 0.24);
+  --glass-shadow-soft: 0 14px 35px rgba(23, 30, 33, 0.08);
+  --glass-shadow-mid: 0 11px 28px rgba(23, 30, 33, 0.13);
+  --glass-shadow-strong: 0 18px 34px rgba(23, 30, 33, 0.18);
+  --glass-blur: 10px;
+  --status-info-bg: rgba(224, 242, 254, 0.9);
+  --status-info-border: #7dd3fc;
+  --status-info-text: #0c4a6e;
+  --status-success-bg: rgba(220, 252, 231, 0.9);
+  --status-success-border: #6ee7b7;
+  --status-success-text: #065f46;
+  --status-error-bg: rgba(255, 228, 230, 0.9);
+  --status-error-border: #fda4af;
+  --status-error-text: #881337;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-main: #0d171b;
+    --bg-spot-1: #2a3458;
+    --bg-spot-2: #12324e;
+    --bg-gradient-tail: #101923;
+    --ink: #e6eef4;
+    --ink-soft: #a6b6c4;
+    --focus-ring: rgba(96, 165, 250, 0.46);
+    --accent: #60a5fa;
+    --accent-strong: #3b82f6;
+    --accent-soft: rgba(96, 165, 250, 0.3);
+    --glass-surface-1: rgba(16, 24, 32, 0.78);
+    --glass-surface-2: rgba(14, 22, 30, 0.68);
+    --glass-surface-3: rgba(24, 32, 40, 0.7);
+    --glass-line: rgba(148, 163, 184, 0.34);
+    --glass-line-strong: rgba(148, 163, 184, 0.48);
+    --glass-shadow-soft: 0 16px 38px rgba(0, 0, 0, 0.38);
+    --glass-shadow-mid: 0 12px 30px rgba(0, 0, 0, 0.5);
+    --glass-shadow-strong: 0 20px 36px rgba(0, 0, 0, 0.58);
+    --status-info-bg: rgba(14, 48, 66, 0.88);
+    --status-info-border: #38bdf8;
+    --status-info-text: #e0f2fe;
+    --status-success-bg: rgba(6, 50, 37, 0.88);
+    --status-success-border: #34d399;
+    --status-success-text: #dcfce7;
+    --status-error-bg: rgba(76, 14, 29, 0.88);
+    --status-error-border: #fb7185;
+    --status-error-text: #ffe4e6;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 10% 12%, var(--bg-spot-1) 0%, transparent 45%),
+    radial-gradient(circle at 88% 20%, var(--bg-spot-2) 0%, transparent 40%),
+    linear-gradient(165deg, var(--bg-main) 0%, var(--bg-gradient-tail) 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+:where(button, a[href], input, select, textarea):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.glass-card {
+  background: var(--glass-surface-1);
+  border: 1px solid var(--glass-line);
+  border-radius: 20px;
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow-soft);
+}
+
+.glass-topbar {
+  border-bottom: 1px solid var(--glass-line-strong);
+  background: var(--glass-surface-1);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.09);
+}
+
+.glass-nav {
+  border: 1px solid var(--glass-line);
+  border-radius: 1rem;
+  background: var(--glass-surface-2);
+  backdrop-filter: blur(8px);
+}
+
+.glass-nav-link {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-soft);
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, color 180ms ease;
+}
+
+.glass-nav-link:hover {
+  border-color: var(--glass-line-strong);
+  background: var(--glass-surface-3);
+  color: var(--ink);
+}
+
+.glass-nav-link-active {
+  border-color: transparent;
+  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #f8fafc;
+  box-shadow: var(--glass-shadow-mid);
+}
+
+.glass-panel {
+  border-radius: 1rem;
+  border: 1px solid var(--glass-line);
+  background: var(--glass-surface-2);
+  backdrop-filter: blur(calc(var(--glass-blur) - 2px));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.glass-soft {
+  border-radius: 0.9rem;
+  border: 1px solid var(--glass-line);
+  background: var(--glass-surface-3);
+}
+
+.glass-badge {
+  border: 1px solid var(--glass-line-strong);
+  background: var(--glass-surface-3);
+  color: var(--ink-soft);
+}
+
+.glass-input {
+  border: 1px solid var(--glass-line-strong);
+  background: var(--glass-surface-2);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.glass-input::placeholder {
+  color: var(--ink-soft);
+}
+
+.glass-input:hover {
+  border-color: var(--glass-line-strong);
+}
+
+.glass-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  outline: none;
+}
+
+.glass-chip {
+  border: 1px solid var(--glass-line);
+  background: var(--glass-surface-2);
+  color: var(--ink);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.glass-chip:hover {
+  border-color: var(--glass-line-strong);
+  box-shadow: var(--glass-shadow-mid);
+}
+
+.glass-chip-active {
+  border-color: transparent;
+  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #f8fafc;
+  box-shadow: var(--glass-shadow-mid);
+}
+
+.glass-button {
+  border: 1px solid var(--glass-line-strong);
+  background: var(--glass-surface-2);
+  color: var(--ink);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease, background-color 180ms ease;
+}
+
+.glass-button:hover {
+  border-color: var(--accent);
+  box-shadow: var(--glass-shadow-mid);
+  transform: translateY(-1px);
+}
+
+.glass-button:disabled {
+  transform: none;
+  box-shadow: none;
+}
+
+.glass-button-primary {
+  border-color: transparent;
+  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #f8fafc;
+}
+
+.glass-button-primary:hover {
+  border-color: transparent;
+}
+
+.glass-button-strong {
+  border-color: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+}
+
+.glass-button-strong:hover {
+  border-color: rgba(15, 23, 42, 0.9);
+}
+
+@media (prefers-color-scheme: dark) {
+  .glass-button-strong {
+    border-color: var(--glass-line-strong);
+    background: rgba(30, 41, 59, 0.78);
+    color: var(--ink);
+  }
+}
+
+.glass-button-danger {
+  border-color: var(--status-error-border);
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
+.glass-button-success {
+  border-color: var(--status-success-border);
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+
+.glass-button-warn {
+  border-color: #f59e0b;
+  background: rgba(254, 243, 199, 0.9);
+  color: #92400e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .glass-button-warn {
+    border-color: #f59e0b;
+    background: rgba(120, 53, 15, 0.75);
+    color: #fde68a;
+  }
+}
+
+.glass-segment {
+  border: 1px solid var(--glass-line);
+  background: var(--glass-surface-3);
+}
+
+.glass-segment-button {
+  color: var(--ink-soft);
+  transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.glass-segment-button-active {
+  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #f8fafc;
+  box-shadow: var(--glass-shadow-mid);
+}
+
+.glass-step {
+  border: 1px solid var(--glass-line-strong);
+  background: var(--glass-surface-2);
+  color: var(--ink-soft);
+}
+
+.glass-step-active {
+  border-color: var(--accent);
+  background: var(--glass-surface-1);
+  color: var(--ink);
+  box-shadow: var(--glass-shadow-mid);
+}
+
+.glass-step-completed {
+  border-color: var(--status-success-border);
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+
+.glass-interactive {
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.glass-interactive:hover {
+  border-color: var(--glass-line-strong);
+  box-shadow: var(--glass-shadow-mid);
+  transform: translateY(-1px);
+}
+
+.notice-banner {
+  border-left-width: 4px;
+  border-radius: 0.75rem;
+  border: 1px solid;
+  box-shadow: var(--glass-shadow-soft);
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+.notice-banner:hover {
+  box-shadow: var(--glass-shadow-mid);
+  transform: translateY(-1px);
+}
+
+.notice-banner--error {
+  border-color: var(--status-error-border);
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
+.notice-banner--success {
+  border-color: var(--status-success-border);
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+
+.notice-banner--info {
+  border-color: var(--status-info-border);
+  background: var(--status-info-bg);
+  color: var(--status-info-text);
+}
+
+.glass-modal-backdrop {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.glass-modal {
+  border: 1px solid var(--glass-line-strong);
+  background: var(--glass-surface-1);
+  box-shadow: var(--glass-shadow-strong);
+}
+
+.gradient-title {
+  background: linear-gradient(120deg, #2563eb 0%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+.float-in {
+  animation: float-in 420ms ease-out both;
+}
+
+@keyframes float-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
