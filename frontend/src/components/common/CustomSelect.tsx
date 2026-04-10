@@ -84,7 +84,7 @@ export default function CustomSelect({
 
   const dropdown = useMemo(() => (
     <div
-      className="absolute z-[9999] glass-panel border border-[var(--color-surface-border)] rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in fade-in zoom-in duration-200"
+      className="absolute z-[9999] bg-gray-900/50 backdrop-blur-md border border-[var(--color-surface-border)] rounded-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
       style={portalPos ? { 
         top: `${portalPos.top}px`, 
         left: `${portalPos.left}px`, 
@@ -105,7 +105,7 @@ export default function CustomSelect({
               "px-4 py-2.5 text-xs font-bold uppercase tracking-wide cursor-pointer transition-all flex items-center justify-between group",
               String(opt.value) === String(value)
                 ? "bg-[var(--primary-600)] text-white"
-                : "text-[var(--primary-300)] hover:bg-[var(--color-surface-hover)] hover:text-white"
+                : "text-[var(--primary-300)] hover:bg-white/10 hover:text-white"
             )}
           >
             <span>{opt.label}</span>
@@ -128,20 +128,20 @@ export default function CustomSelect({
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "glass-input w-full flex items-center justify-between px-4 transition-all duration-300",
-          isOpen ? "ring-2 ring-[var(--primary-500)] border-[var(--primary-500)]" : "",
-          disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-[var(--primary-400)]",
+          "w-full flex items-center justify-between px-4 transition-all duration-300 cursor-pointer rounded-md bg-[#121418] border border-[var(--color-surface-border)]",
+          isOpen ? "ring-1 ring-[var(--primary-500)] border-[var(--primary-500)]" : "hover:border-[var(--primary-400)]",
+          disabled ? "opacity-50 cursor-not-allowed" : "",
           hSize
         )}
       >
         <span className={cn(
           "text-xs font-bold tracking-tight uppercase truncate mr-2",
-          !selectedOption ? "text-[var(--primary-500)] italic" : "text-[var(--primary-50)]"
+          !selectedOption ? "text-[var(--primary-500)] italic" : "text-white"
         )}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown className={cn(
-          "w-4 h-4 text-[var(--primary-500)] transition-transform duration-300 ease-out",
+          "w-4 h-4 text-[var(--primary-500)] transition-transform duration-300",
           isOpen && "rotate-180"
         )} />
       </button>

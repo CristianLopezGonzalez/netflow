@@ -748,6 +748,7 @@ export const PlanningCalendarPage = () => {
                 const isMine = ownerId === user?.id;
                 const isSelected = rotationItem.semana_id === selectedWeekId;
                 const isMixedDay = (diaDetalle?.usuarios.length ?? 0) > 1;
+                const isMixedWeek = (rotationItem.empleados?.length ?? 0) > 1;
                 const ownerName = diaDetalle?.usuario_nombre ?? rotationItem.principal_usuario_nombre ?? "Sin asignar";
                 const ownerDisplayName = formatDisplayName(ownerName);
                 

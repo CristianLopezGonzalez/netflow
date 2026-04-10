@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { cn } from "../../lib/utils";
 
 import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
@@ -35,58 +36,33 @@ export const AppShell = () => {
   const saldoNeto = totalMeDeben - totalDebo;
 
   return (
-    <main className="min-h-screen w-full">
-      <header className="glass-topbar sticky top-0 z-40 w-full">
-        <div className="flex w-full flex-col gap-3 px-3 py-3 md:px-6 lg:px-8">
-          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-            <div className="flex items-center gap-4">
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-[var(--color-surface-border)] shadow-xl">
-                <img
-                  src="/logo.webp"
-                  alt="Netflow Logo"
-                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
-                />
-              </div>
-              <div>
-                <p className="mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--accent)]">Netflow</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-bold text-[color:var(--ink)] md:text-3xl">{user?.nombre}</h1>
-                  <span className="glass-badge rounded-full px-2.5 py-1 text-xs font-semibold">
-                    Rol: {user?.rol}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
-                  Panel de turnos, intercambios y bolsa en una sola vista.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void reloadAll()}
-                className="glass-button h-10 rounded-lg px-4 text-sm font-semibold"
-              >
-                Recargar datos
-              </button>
-              <button
-                type="button"
-                onClick={logout}
-                className="glass-button glass-button-danger h-10 rounded-lg px-4 text-sm font-semibold"
-              >
-                Cerrar sesion
-              </button>
-            </div>
+    <main className="min-h-screen w-full bg-[#121418]">
+      <header className="h-14 flex items-center justify-between px-6 border-b border-[var(--color-surface-border)] bg-grey-900 backdrop-blur-xl sticky top-0 z-40">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+             <div className="w-8 h-8 rounded-md overflow-hidden">
+                <img src="/logo.webp" alt="Logo" className="w-full h-full object-cover" />
+             </div>
+             <p className="text-sm font-black uppercase tracking-widest text-[var(--primary-200)] hidden md:block">Netflow</p>
           </div>
+          
+          <p className="text-xs text-[var(--primary-500)] capitalize hidden lg:block">
+            {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
 
-          <nav className="glass-nav p-2">
-            <div className="flex flex-wrap gap-2">
+          <nav className="flex items-center ml-4">
+            <div className="flex gap-1">
               {links.map((link) => (
                 <NavLink
                   key={link.to}
                   to={link.to}
                   className={({ isActive }) =>
-                    `glass-nav-link rounded-lg px-4 py-2.5 text-sm font-semibold ${isActive ? "glass-nav-link-active" : ""}`
+                    cn(
+                      "px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-colors",
+                      isActive 
+                        ? "bg-white/5 text-white" 
+                        : "text-[var(--primary-500)] hover:text-[var(--primary-200)] hover:bg-white/5"
+                    )
                   }
                 >
                   {link.label}
@@ -95,63 +71,60 @@ export const AppShell = () => {
             </div>
           </nav>
         </div>
+
+        <div className="flex items-center gap-4">
+          {/* Header Stats Strip */}
+          <div className="hidden xl:flex items-center gap-4 pr-4 border-r border-[var(--color-surface-border)]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase font-black text-[var(--primary-600)]">Ptes:</span>
+              <span className="text-xs font-bold text-amber-400">{pendientesRecibidas + pendientesEnviadas}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase font-black text-[var(--primary-600)]">Bolsa:</span>
+              <span className={cn(
+                "text-xs font-bold",
+                saldoNeto > 0 ? "text-emerald-400" : saldoNeto < 0 ? "text-rose-400" : "text-white"
+              )}>{saldoNeto}d</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pl-3">
+            <div className="text-right hidden sm:block">
+              <span className="text-sm font-semibold text-white block leading-none">{user?.nombre}</span>
+              <p className="text-[10px] text-[var(--primary-500)] uppercase font-black mt-1 tracking-wider">{user?.rol}</p>
+            </div>
+            <div className="w-8 h-8 rounded-md bg-white/5 border border-white/10 text-[var(--primary-200)] flex items-center justify-center text-sm font-black">
+              {user?.nombre?.charAt(0).toUpperCase()}
+            </div>
+            <button
+              onClick={logout}
+              className="p-1.5 text-[var(--primary-600)] hover:text-rose-400 transition-colors"
+              title="Cerrar sesión"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
+          </div>
+        </div>
       </header>
 
-      <section className="w-full space-y-4 px-3 py-4 md:px-6 lg:px-8">
-        <section className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-          <article className="stat-card glass-interactive">
-            <p className="stat-label">Semanas cargadas</p>
-            <p className="stat-value">{weeks.length}</p>
-          </article>
-          <article className="stat-card glass-interactive">
-            <p className="stat-label">Mis turnos registrados</p>
-            <p className="stat-value">{myAssignments.length}</p>
-          </article>
-          <article className="stat-card glass-interactive">
-            <p className="stat-label">Intercambios pendientes</p>
-            <p className="stat-value text-amber-400">
-              {pendientesRecibidas} <span className="text-[10px] opacity-60">recib.</span> · {pendientesEnviadas} <span className="text-[10px] opacity-60">env.</span>
-            </p>
-          </article>
-          <article className="stat-card glass-interactive">
-            <p className="stat-label">Saldo neto bolsa</p>
-            <div className="flex items-baseline gap-2">
-              <p
-                className={`stat-value ${
-                  saldoNeto > 0
-                    ? "text-emerald-400"
-                    : saldoNeto < 0
-                      ? "text-rose-400"
-                      : "text-[var(--primary-200)]"
-                }`}
-              >
-                {saldoNeto > 0 ? `+${saldoNeto}` : saldoNeto} d
-              </p>
-              <p className="text-[10px] font-bold text-[var(--primary-500)]">
-                ME DEBEN {totalMeDeben} · DEBO {totalDebo}
-              </p>
-            </div>
-          </article>
-        </section>
-
+      <section className="w-full px-6 py-6 max-w-[1600px] mx-auto">
         {loading && (
-          <div className="glass-panel px-4 py-3 flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse"></div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]">
-              Sincronizando informacion del servidor...
-            </p>
+          <div className="flex items-center gap-2 mb-4 animate-pulse">
+            <div className="h-1 w-1 rounded-full bg-blue-400"></div>
+            <p className="text-[9px] font-black uppercase text-[var(--primary-600)]">Sincronizando sistema...</p>
           </div>
         )}
 
+
         {lastError && (
-          <div className="notice-banner notice-banner--error flex items-center justify-between gap-3 px-4 py-3">
-            <span className="text-sm font-medium">{lastError}</span>
+          <div className="notice-banner notice-banner--error animate-fade-in">
+            <span className="text-xs font-black uppercase tracking-tight">{lastError}</span>
             <button
               type="button"
               onClick={clearLastError}
-              className="glass-button h-8 rounded-lg px-3 text-[10px]"
+              className="ml-auto bg-white/10 hover:bg-white/20 px-3 py-1 rounded text-[9px] font-black uppercase"
             >
-              Cerrar
+              Ignorar
             </button>
           </div>
         )}

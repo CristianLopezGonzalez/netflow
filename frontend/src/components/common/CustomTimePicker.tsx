@@ -58,7 +58,7 @@ export default function CustomTimePicker({
 
   const dropdown = useMemo(() => (
     <div
-      className="absolute z-[9999] glass-panel border border-[var(--color-surface-border)] rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in fade-in zoom-in duration-200 p-4"
+      className="absolute z-[9999] bg-gray-900/50 backdrop-blur-md border border-[var(--color-surface-border)] rounded-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 p-4"
       style={portalPos ? { 
         top: `${portalPos.top}px`, 
         left: `${portalPos.left}px`, 
@@ -76,8 +76,8 @@ export default function CustomTimePicker({
               type="button"
               onClick={() => setTime(hour, m)}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all text-center",
-                h === hour ? "bg-[var(--primary-600)] text-white shadow-lg shadow-blue-500/20" : "text-[var(--primary-400)] hover:bg-white/5 hover:text-white"
+                "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all text-center",
+                h === hour ? "bg-[var(--primary-600)] text-white shadow-md shadow-blue-500/20" : "text-[var(--primary-400)] hover:bg-white/5 hover:text-white"
               )}
             >
               {hour}
@@ -94,8 +94,8 @@ export default function CustomTimePicker({
               type="button"
               onClick={() => { setTime(h, min); setIsOpen(false); }}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all text-center",
-                m === min ? "bg-[var(--primary-600)] text-white shadow-lg shadow-blue-500/20" : "text-[var(--primary-400)] hover:bg-white/5 hover:text-white"
+                "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all text-center",
+                m === min ? "bg-[var(--primary-600)] text-white shadow-md shadow-blue-500/20" : "text-[var(--primary-400)] hover:bg-white/5 hover:text-white"
               )}
             >
               {min}
@@ -115,14 +115,14 @@ export default function CustomTimePicker({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "glass-input w-full flex items-center justify-between px-4 transition-all duration-300 cursor-pointer",
-          isOpen ? "ring-2 ring-[var(--primary-500)] border-[var(--primary-500)]" : "hover:border-[var(--primary-400)]",
+          "w-full flex items-center justify-between px-4 transition-all duration-300 cursor-pointer rounded-md bg-[#121418] border border-[var(--color-surface-border)]",
+          isOpen ? "ring-1 ring-[var(--primary-500)] border-[var(--primary-500)]" : "hover:border-[var(--primary-400)]",
           hSize
         )}
       >
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-[var(--primary-500)]" />
-          <span className="text-sm text-[var(--primary-50)] font-bold font-mono tracking-tighter">
+          <span className="text-sm text-white font-bold font-mono tracking-tighter">
             {value || '--:--'}
           </span>
         </div>

@@ -99,7 +99,8 @@ export default function CustomDatePicker({
 
   const calendar = useMemo(() => (
     <div
-      className="absolute z-[9999] glass-panel border border-[var(--color-surface-border)] rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in fade-in zoom-in duration-200 p-4"
+    <div
+      className="absolute z-[9999] bg-gray-900/50 backdrop-blur-md border border-[var(--color-surface-border)] rounded-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 p-4"
       style={portalPos ? { 
         top: `${portalPos.top}px`, 
         left: `${portalPos.left}px`, 
@@ -140,9 +141,9 @@ export default function CustomDatePicker({
               type="button"
               onClick={() => handleSelectDay(day)}
               className={cn(
-                "w-8 h-8 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center relative",
+                "w-8 h-8 rounded-md text-[10px] font-bold transition-all flex items-center justify-center relative",
                 selected
-                  ? "bg-[var(--primary-600)] text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]"
+                  ? "bg-[var(--primary-600)] text-white shadow-md shadow-blue-500/20"
                   : workDay
                     ? "bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
                     : today
@@ -161,13 +162,13 @@ export default function CustomDatePicker({
       <div className="mt-4 pt-4 border-t border-[var(--color-surface-border)] flex justify-between items-center">
         <button 
           onClick={() => { onChange(''); setIsOpen(false); }} 
-          className="text-[9px] font-black uppercase text-rose-400 px-2 py-1.5 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center gap-1"
+          className="text-[9px] font-black uppercase text-rose-400 px-2 py-1.5 hover:bg-rose-500/10 rounded-md transition-colors flex items-center gap-1"
         >
           <X className="w-3 h-3" /> Borrar
         </button>
         <button 
           onClick={() => { setViewDate(new Date()); }} 
-          className="text-[9px] font-black uppercase text-[var(--primary-400)] px-2 py-1.5 hover:bg-blue-500/10 rounded-lg transition-colors"
+          className="text-[9px] font-black uppercase text-[var(--primary-400)] px-2 py-1.5 hover:bg-blue-500/10 rounded-md transition-colors"
         >
           Hoy
         </button>
@@ -181,14 +182,14 @@ export default function CustomDatePicker({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "glass-input w-full flex items-center justify-between px-4 transition-all duration-300 cursor-pointer",
-          isOpen ? "ring-2 ring-[var(--primary-500)] border-[var(--primary-500)]" : "hover:border-[var(--primary-400)]",
+          "w-full flex items-center justify-between px-4 transition-all duration-300 cursor-pointer rounded-md bg-[#121418] border border-[var(--color-surface-border)]",
+          isOpen ? "ring-1 ring-[var(--primary-500)] border-[var(--primary-500)]" : "hover:border-[var(--primary-400)]",
           hSize
         )}
       >
         <span className={cn(
           "text-xs font-bold tracking-tight uppercase truncate mr-2",
-          !value ? "text-[var(--primary-500)] italic" : "text-[var(--primary-50)]"
+          !value ? "text-[var(--primary-500)] italic" : "text-white"
         )}>
           {value || placeholder}
         </span>

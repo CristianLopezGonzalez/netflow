@@ -60,17 +60,17 @@
 
 @layer components {
   .panel, .glass-card, .glass-panel {
-    background-color: #1c1e22f2;
-    @apply backdrop-blur-xl border border-[var(--color-surface-border)] rounded-xl shadow-2xl transition-all duration-200;
+    background-color: #1c1e22;
+    @apply border border-[var(--color-surface-border)] rounded-md transition-all duration-200;
   }
 
   .glass-topbar {
-    background-color: color-mix(in srgb, var(--color-surface), transparent 20%);
-    @apply backdrop-blur-md border-b border-[var(--color-surface-border)] shadow-lg;
+    background-color: color-mix(in srgb, var(--color-surface), transparent 10%);
+    @apply backdrop-blur-sm border-b border-[var(--color-surface-border)];
   }
 
   .btn, .glass-button {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none cursor-pointer text-sm;
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-md font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none cursor-pointer text-sm;
   }
 
   .btn-primary, .glass-button-primary {
@@ -115,8 +115,7 @@
   }
 
   .glass-nav {
-    background-color: color-mix(in srgb, var(--color-surface-bright), transparent 50%);
-    @apply flex gap-1 p-1 border border-[var(--color-surface-border)] rounded-lg;
+    @apply flex gap-1 p-1 border border-[var(--color-surface-border)] rounded-md;
   }
 
   .glass-nav-link {
@@ -124,8 +123,11 @@
   }
 
   .glass-nav-link-active {
-    @apply bg-[var(--primary-700)] text-white shadow-sm;
-    border: 1px solid color-mix(in srgb, var(--primary-600), transparent 70%);
+    @apply bg-[var(--primary-700)] text-white shadow-lg border border-[var(--primary-600)] scale-105;
+  }
+
+  .glass-nav-ghost {
+    @apply flex gap-4 p-0 bg-transparent border-none;
   }
 
   .badge, .glass-badge, .glass-chip {
