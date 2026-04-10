@@ -183,8 +183,8 @@ export const WeeklyViewPage = () => {
     <section className="glass-card float-in space-y-4 p-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Turnos semanales de tarde</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="text-xl font-bold">Turnos semanales de tarde</h2>
+          <p className="mt-1 text-sm text-[var(--primary-400)]">
             {selectedWeek ? `Estado: ${selectedWeek.estado}` : "No hay semana seleccionada."}
           </p>
         </div>
@@ -201,7 +201,7 @@ export const WeeklyViewPage = () => {
           <button
             type="button"
             onClick={() => void reloadWeekDetail(selectedWeekId)}
-            className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700"
+            className="glass-button h-10 rounded-lg px-4 text-sm font-semibold"
           >
             Actualizar
           </button>
@@ -209,17 +209,17 @@ export const WeeklyViewPage = () => {
       </div>
 
       {canCreateWeek && (
-        <form onSubmit={handleAutoGenerate} className="rounded-2xl border border-slate-300 bg-white/80 p-4">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">
+        <form onSubmit={handleAutoGenerate} className="glass-panel p-4">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">
             Generacion automatica
           </h3>
 
-          <div className="mt-3 inline-flex rounded-xl border border-slate-300 bg-white p-1">
+          <div className="mt-3 inline-flex rounded-xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-1">
             <button
               type="button"
               onClick={() => setAutoMode("mes")}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                autoMode === "mes" ? "bg-slate-900 text-white" : "text-slate-700"
+                autoMode === "mes" ? "bg-[var(--primary-700)] text-white shadow-sm" : "text-[var(--primary-400)] hover:text-white"
               }`}
             >
               Generar mes
@@ -228,7 +228,7 @@ export const WeeklyViewPage = () => {
               type="button"
               onClick={() => setAutoMode("anio")}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                autoMode === "anio" ? "bg-slate-900 text-white" : "text-slate-700"
+                autoMode === "anio" ? "bg-[var(--primary-700)] text-white shadow-sm" : "text-[var(--primary-400)] hover:text-white"
               }`}
             >
               Generar anio
@@ -236,7 +236,7 @@ export const WeeklyViewPage = () => {
           </div>
 
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <label className="block text-sm text-slate-700">
+            <label className="block text-sm text-[var(--primary-300)]">
               Anio
               <input
                 type="number"
@@ -249,13 +249,13 @@ export const WeeklyViewPage = () => {
                     anio: event.target.value,
                   }))
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                className="glass-input mt-1 w-full rounded-lg px-3 py-2"
                 required
               />
             </label>
 
             {autoMode === "mes" && (
-              <label className="block text-sm text-slate-700">
+              <label className="block text-sm text-[var(--primary-300)]">
                 Mes
                 <select
                   value={autoForm.mes}
@@ -265,7 +265,7 @@ export const WeeklyViewPage = () => {
                       mes: event.target.value,
                     }))
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                  className="glass-input mt-1 w-full rounded-lg px-3 py-2"
                 >
                   {monthOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -276,7 +276,7 @@ export const WeeklyViewPage = () => {
               </label>
             )}
 
-            <label className="block text-sm text-slate-700">
+            <label className="block text-sm text-[var(--primary-300)]">
               Cantidad empleados
               <input
                 type="number"
@@ -299,15 +299,15 @@ export const WeeklyViewPage = () => {
                       : Math.max(1, availableEmployees.length || 1);
                   setAutoEmployeeCount(Math.max(1, Math.min(parsed, max)));
                 }}
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                className="glass-input mt-1 w-full rounded-lg px-3 py-2"
                 required
               />
-              <p className="mt-1 text-xs text-slate-500">
-                Empleados activos disponibles: {availableEmployeeCount}
+              <p className="mt-1 text-[10px] text-[var(--primary-500)] font-medium">
+                Disponibles: {availableEmployeeCount}
               </p>
             </label>
 
-            <label className="block text-sm text-slate-700">
+            <label className="block text-sm text-[var(--primary-300)]">
               Estado semanas
               <select
                 value={autoForm.estado}
@@ -317,14 +317,14 @@ export const WeeklyViewPage = () => {
                     estado: event.target.value as "borrador" | "publicado",
                   }))
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                className="glass-input mt-1 w-full rounded-lg px-3 py-2"
               >
                 <option value="borrador">borrador</option>
                 <option value="publicado">publicado</option>
               </select>
             </label>
 
-            <label className="block text-sm text-slate-700">
+            <label className="block text-sm text-[var(--primary-300)]">
               Estrategia conflicto
               <select
                 value={autoForm.estrategia_conflicto}
@@ -334,17 +334,17 @@ export const WeeklyViewPage = () => {
                     estrategia_conflicto: event.target.value as "skip" | "replace",
                   }))
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                className="glass-input mt-1 w-full rounded-lg px-3 py-2"
               >
-                <option value="replace">replace (regenerar y sustituir)</option>
-                <option value="skip">skip (mantener existente)</option>
+                <option value="replace">replace (sustituir)</option>
+                <option value="skip">skip (mantener)</option>
               </select>
             </label>
           </div>
 
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: autoEmployeeCount }).map((_, index) => (
-              <label key={`auto-employee-${index}`} className="block text-sm text-slate-700">
+              <label key={`auto-employee-${index}`} className="block text-sm text-[var(--primary-300)]">
                 Empleado {index + 1}
                 <select
                   value={autoEmployeeIds[index] ?? ""}
@@ -355,7 +355,7 @@ export const WeeklyViewPage = () => {
                       return next;
                     })
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                  className="glass-input mt-1 w-full rounded-lg px-3 py-2"
                   required
                 >
                   <option value="">Selecciona empleado</option>
@@ -369,20 +369,16 @@ export const WeeklyViewPage = () => {
             ))}
           </div>
 
-          <p className="mt-2 text-xs text-slate-500">
-            En anual puedes cambiar cantidad o lista de empleados y regenerar en cualquier momento.
-            Si eliges replace, se recalcula la rotacion completa de las semanas objetivo.
-          </p>
-          <p className="text-xs text-slate-500">
-            Solo se permiten usuarios con rol empleado. Si necesitas seleccionar mas de {availableEmployeeCount},
-            primero crea/activa mas empleados.
+          <p className="mt-3 text-[10px] text-[var(--primary-500)] font-medium max-w-2xl">
+            En anual puedes cambiar cantidad o lista de empleados y regenerar.
+            Replace recalcula la rotacion completa. Solo se permiten usuarios con rol empleado.
           </p>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
               type="submit"
               disabled={autoBusy}
-              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+              className="glass-button glass-button-primary rounded-lg px-6 py-2.5 text-sm font-bold disabled:opacity-50"
             >
               {autoBusy
                 ? "Generando..."
@@ -392,36 +388,36 @@ export const WeeklyViewPage = () => {
             </button>
           </div>
 
-          <div className="mt-3 space-y-2">
+          <div className="mt-4 space-y-2">
             <NoticeBanner message={autoError} kind="error" />
             <NoticeBanner message={autoNotice} kind="success" />
           </div>
 
           {autoSummary && (
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-              <p className="font-semibold text-slate-900">
-                Resumen: {autoSummary.semanas_objetivo} objetivo, {autoSummary.semanas_creadas} creadas,
-                {" "}
-                {autoSummary.semanas_actualizadas} actualizadas.
+            <div className="mt-4 glass-soft border border-[var(--color-surface-border)] rounded-xl p-4 text-sm">
+              <p className="font-bold text-[var(--primary-50)] mb-1">
+                Resumen de generacion
               </p>
-              <p>
-                Asignaciones: {autoSummary.asignaciones_creadas} creadas, {autoSummary.asignaciones_reemplazadas}
-                {" "}
-                reemplazadas, {autoSummary.asignaciones_omitidas} omitidas.
-              </p>
-              <p>Conflictos reportados: {autoSummary.conflictos.length}</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[var(--primary-400)]">
+                <p>Semanas objetivo: <span className="text-[var(--primary-200)] font-semibold">{autoSummary.semanas_objetivo}</span></p>
+                <p>Asignaciones creadas: <span className="text-emerald-400 font-semibold">{autoSummary.asignaciones_creadas}</span></p>
+                <p>Semanas creadas: <span className="text-[var(--primary-200)] font-semibold">{autoSummary.semanas_creadas}</span></p>
+                <p>Asignaciones reemplazadas: <span className="text-amber-400 font-semibold">{autoSummary.asignaciones_reemplazadas}</span></p>
+                <p>Semanas actualizadas: <span className="text-[var(--primary-200)] font-semibold">{autoSummary.semanas_actualizadas}</span></p>
+                <p>Conflictos: <span className="text-rose-400 font-semibold">{autoSummary.conflictos.length}</span></p>
+              </div>
             </div>
           )}
         </form>
       )}
 
       {selectedWeek && (
-        <p className="rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700">
+        <div className="glass-chip px-3 py-2 text-sm font-bold inline-flex">
           {formatWeek(selectedWeek)}
-        </p>
+        </div>
       )}
 
-      <p className="text-sm text-slate-600">Semanas registradas: {weeks.length}</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">Semanas registradas: {weeks.length}</p>
 
       {weeks.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -430,13 +426,13 @@ export const WeeklyViewPage = () => {
               key={week.id}
               type="button"
               onClick={() => setSelectedWeekId(week.id)}
-              className={`h-11 rounded-xl border-2 px-4 text-sm font-semibold ${
+              className={`h-10 rounded-lg border px-4 text-xs font-bold transition-all shadow-sm ${
                 selectedWeekId === week.id
-                  ? "border-slate-800 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                  ? "bg-[var(--primary-700)] border-[var(--primary-600)] text-white shadow-lg"
+                  : "bg-[var(--color-surface-hover)] border-[var(--color-surface-border)] text-[var(--primary-400)] hover:text-white"
               }`}
             >
-              Semana {week.numero_semana}/{week.anio}
+              W{week.numero_semana}/{week.anio}
             </button>
           ))}
         </div>
@@ -444,16 +440,16 @@ export const WeeklyViewPage = () => {
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         {dayOrder.map((day) => (
-          <article key={day} className="rounded-2xl border border-slate-300 bg-white/80 p-3">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{day}</h3>
-            <div className="mt-2 space-y-2">
+          <article key={day} className="panel p-3">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">{day}</h3>
+            <div className="mt-3 space-y-2">
               {groupedByDay[day].length === 0 && (
-                <p className="text-xs text-slate-500">Sin turno asignado</p>
+                <p className="text-xs text-[var(--primary-600)] italic">Sin turnos</p>
               )}
               {groupedByDay[day].map((item) => (
-                <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
-                  <p className="text-sm font-semibold text-slate-900">{item.usuario_detalle?.nombre}</p>
-                  <p className="mono text-xs text-slate-600">
+                <div key={item.id} className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 py-2.5 shadow-sm">
+                  <p className="text-sm font-bold text-[var(--primary-100)]">{item.usuario_detalle?.nombre}</p>
+                  <p className="mono mt-0.5 text-[10px] font-medium text-[var(--primary-400)]">
                     {item.hora_inicio.slice(0, 5)} - {item.hora_fin.slice(0, 5)}
                   </p>
                 </div>

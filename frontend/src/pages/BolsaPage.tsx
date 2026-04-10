@@ -653,7 +653,7 @@ export const BolsaPage = () => {
   return (
     <section className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
       <article className="glass-card float-in space-y-4 p-5 md:p-6">
-        <h2 className="text-2xl font-bold text-slate-900">Solicitar compensacion</h2>
+        <h2 className="text-2xl font-bold">Solicitar compensacion</h2>
 
         <div className={panelCardClass}>
           <WeekSelector
@@ -667,26 +667,26 @@ export const BolsaPage = () => {
             }
           />
           {form.direccion === "devolver" && !form.usuario_id && (
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-[var(--primary-500)]">
               Selecciona primero un companero acreedor para cargar sus semanas.
             </p>
           )}
           {form.direccion === "devolver" && form.usuario_id && loadingCompanionWeeks && (
-            <p className="mt-2 text-xs text-slate-500">Cargando semanas del acreedor...</p>
+            <p className="mt-2 text-xs text-[var(--primary-500)]">Cargando semanas del acreedor...</p>
           )}
           {selectedWeek ? (
-            <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+            <p className="mt-3 rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-hover)] px-3 py-2 text-sm font-medium text-[var(--primary-200)]">
               Semana activa: {formatWeek(selectedWeek)}
             </p>
           ) : (
-            <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
+            <p className="mt-3 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300">
               No hay semana activa para compensar.
             </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-slate-700">Operacion</p>
+          <p className="text-sm font-semibold text-[var(--primary-300)]">Operacion</p>
           <div className="glass-segment grid grid-cols-2 gap-2 rounded-xl p-1">
             <button
               type="button"
@@ -715,11 +715,11 @@ export const BolsaPage = () => {
             </button>
           </div>
           {!hasDevolverDebt && (
-            <p className="text-xs font-semibold text-slate-500">
+            <p className="text-xs font-semibold text-[var(--primary-500)]">
               No debes dias ahora mismo, por eso Devolver deuda esta deshabilitado.
             </p>
           )}
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-[var(--primary-400)]">
             {form.direccion === "cobrar"
               ? "El deudor cubre turnos del acreedor para reducir saldo pendiente."
               : "El deudor propone cubrir turnos del acreedor para devolver saldo pendiente."}
@@ -748,22 +748,22 @@ export const BolsaPage = () => {
         <form className="space-y-3.5" onSubmit={handleSubmit}>
           <div className="grid gap-2 sm:grid-cols-3">
             <div className={summaryCardClass}>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Tipo</p>
-              <p className="text-lg font-bold text-slate-900">{form.tipo}</p>
+              <p className="text-xs uppercase tracking-wide text-[var(--primary-500)]">Tipo</p>
+              <p className="text-lg font-bold text-[var(--primary-50)]">{form.tipo}</p>
             </div>
             <div className={summaryCardClass}>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Dias solicitados</p>
-              <p className="text-lg font-bold text-slate-900">
+              <p className="text-xs uppercase tracking-wide text-[var(--primary-500)]">Dias solicitados</p>
+              <p className="text-lg font-bold text-[var(--primary-50)]">
                 {form.tipo === "semana" ? diasOperacionSemana : selectedDayOriginIds.length}
               </p>
             </div>
             <div className={summaryCardClass}>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Deuda disponible</p>
-              <p className="text-lg font-bold text-slate-900">{deudaDisponible ?? 0}</p>
+              <p className="text-xs uppercase tracking-wide text-[var(--primary-500)]">Deuda disponible</p>
+              <p className="text-lg font-bold text-[var(--primary-50)]">{deudaDisponible ?? 0}</p>
             </div>
           </div>
 
-          <label className="block text-sm text-slate-700">
+          <label className="block text-sm text-[var(--primary-300)]">
             {form.direccion === "cobrar" ? "Companero deudor" : "Companero acreedor"}
             <select
               value={form.usuario_id}
@@ -791,20 +791,24 @@ export const BolsaPage = () => {
             </select>
           </label>
 
-          <div className="glass-soft px-3 py-2 text-sm text-slate-700">
+          <div className="glass-soft px-3 py-2 text-sm text-[var(--primary-300)]">
             {!form.usuario_id && <p>Selecciona un companero para ver el saldo individual.</p>}
             {form.usuario_id && loadingCompanionBalance && <p>Cargando saldo con companero...</p>}
             {form.usuario_id && !loadingCompanionBalance && companionBalance && (
               <div className="space-y-1">
-                <p className="font-semibold text-slate-900">
+                <p className="font-semibold text-[var(--primary-50)]">
                   Saldo con {companionBalance.usuario?.nombre ?? "companero"}
                 </p>
-                <p>
-                  Te debe: <span className="font-semibold text-emerald-700 dark:text-emerald-200">{companionBalance.me_deben}</span>
-                </p>
-                <p>
-                  Le debes: <span className="font-semibold text-rose-700 dark:text-rose-200">{companionBalance.debo}</span>
-                </p>
+                <div className="flex gap-4">
+                  <div className="flex gap-1.5 overflow-hidden rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-2 py-0.5 text-xs">
+                    <span className="text-[var(--primary-400)]">Te debe:</span>
+                    <span className="font-bold text-emerald-400">{companionBalance.me_deben}</span>
+                  </div>
+                  <div className="flex gap-1.5 overflow-hidden rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-2 py-0.5 text-xs">
+                    <span className="text-[var(--primary-400)]">Le debes:</span>
+                    <span className="font-bold text-rose-400">{companionBalance.debo}</span>
+                  </div>
+                </div>
               </div>
             )}
             {companionBalanceError && (
@@ -993,7 +997,7 @@ export const BolsaPage = () => {
       </article>
 
       <article className="glass-card float-in space-y-4 p-5 md:p-6">
-        <h2 className="text-2xl font-bold text-slate-900">Saldos y movimientos</h2>
+        <h2 className="text-2xl font-bold">Saldos y movimientos</h2>
 
         <div className="grid gap-3 md:grid-cols-2">
           <div className="glass-soft border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/60 dark:bg-emerald-900/35">
@@ -1007,18 +1011,18 @@ export const BolsaPage = () => {
         </div>
 
         <div className={panelCardClass}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Detalle por companero</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-300)]">Detalle por companero</p>
           <div className="mt-2 space-y-2">
             {bolsaSaldos.detalles.length === 0 && (
-              <p className="text-sm text-slate-500">No hay saldos pendientes con companeros.</p>
+              <p className="text-sm text-[var(--primary-500)]">No hay saldos pendientes con companeros.</p>
             )}
 
             {bolsaSaldos.detalles.map((item) => (
               <div key={item.usuario.id} className="glass-soft px-3 py-3">
-                <p className="font-semibold text-slate-900">{item.usuario.nombre}</p>
-                <p className="text-sm text-slate-600">
-                  Me deben: <span className="font-semibold text-emerald-700 dark:text-emerald-200">{item.me_deben}</span> | Debo:
-                  <span className="font-semibold text-rose-700 dark:text-rose-200"> {item.debo}</span>
+                <p className="font-semibold text-[var(--primary-50)]">{item.usuario.nombre}</p>
+                <p className="text-sm text-[var(--primary-400)]">
+                  Me deben: <span className="font-semibold text-emerald-400">{item.me_deben}</span> | Debo:
+                  <span className="font-semibold text-rose-400"> {item.debo}</span>
                 </p>
               </div>
             ))}
@@ -1026,9 +1030,9 @@ export const BolsaPage = () => {
         </div>
 
         <div className={panelCardClass}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Movimientos historicos</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-300)]">Movimientos historicos</p>
           <div className="mt-3 grid gap-2 md:grid-cols-2">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Buscar
               <input
                 type="search"
@@ -1039,7 +1043,7 @@ export const BolsaPage = () => {
               />
             </label>
 
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Tipo
               <select
                 value={movementTypeFilter}
@@ -1052,7 +1056,7 @@ export const BolsaPage = () => {
               </select>
             </label>
 
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Companero
               <select
                 value={movementCompanionFilter}
@@ -1068,7 +1072,7 @@ export const BolsaPage = () => {
               </select>
             </label>
 
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Orden
               <select
                 value={movementOrder}
@@ -1080,7 +1084,7 @@ export const BolsaPage = () => {
               </select>
             </label>
 
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Desde
               <input
                 type="date"
@@ -1090,7 +1094,7 @@ export const BolsaPage = () => {
               />
             </label>
 
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Hasta
               <input
                 type="date"
@@ -1118,7 +1122,7 @@ export const BolsaPage = () => {
 
           <div className="mt-2 max-h-80 space-y-2 overflow-auto pr-1">
             {filteredMovements.length === 0 && (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-[var(--primary-500)]">
                 {movements.length === 0
                   ? "Sin movimientos registrados."
                   : "No hay movimientos para los filtros actuales. Ajusta filtros o usa Limpiar filtros."}
@@ -1126,10 +1130,10 @@ export const BolsaPage = () => {
             )}
             {filteredMovements.map((item) => (
               <div key={item.id} className="glass-soft p-3">
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-sm font-semibold text-[var(--primary-50)]">
                   {item.origen_usuario.nombre} {"->"} {item.destino_usuario.nombre}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[var(--primary-500)]">
                   {item.tipo} · {item.dias} dia(s) · {item.fecha.slice(0, 10)}
                 </p>
               </div>

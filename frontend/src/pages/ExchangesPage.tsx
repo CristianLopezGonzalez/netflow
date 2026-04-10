@@ -795,7 +795,7 @@ export const ExchangesPage = () => {
       >
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               {counterpartLabel}: {counterpartName}
             </p>
             <p className="text-sm font-semibold text-[color:var(--ink)]">{message}</p>
@@ -884,7 +884,7 @@ export const ExchangesPage = () => {
   return (
     <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
       <article className="glass-card float-in p-5 md:p-6">
-        <h2 className="text-2xl font-bold text-slate-900">Nueva solicitud</h2>
+        <h2 className="text-2xl font-bold">Nueva solicitud</h2>
 
         <div className={`mt-4 ${panelCardClass}`}>
           <WeekSelector
@@ -908,15 +908,15 @@ export const ExchangesPage = () => {
           <div className="grid gap-2 sm:grid-cols-3">
             <div className={summaryCardClass}>
               <p className="text-xs uppercase tracking-wide text-slate-500">Tus dias seleccionados</p>
-              <p className="text-lg font-bold text-slate-900">{selectedOriginCount}</p>
+              <p className="text-lg font-bold text-[var(--primary-50)]">{selectedOriginCount}</p>
             </div>
             <div className={summaryCardClass}>
               <p className="text-xs uppercase tracking-wide text-slate-500">Dias companero</p>
-              <p className="text-lg font-bold text-slate-900">{isBolsaMode ? "No aplica" : selectedDestinationCount}</p>
+              <p className="text-lg font-bold text-[var(--primary-50)]">{isBolsaMode ? "No aplica" : selectedDestinationCount}</p>
             </div>
             <div className={summaryCardClass}>
               <p className="text-xs uppercase tracking-wide text-slate-500">Modo actual</p>
-              <p className="text-lg font-bold text-slate-900">{form.modo_compensacion}</p>
+              <p className="text-lg font-bold text-[var(--primary-50)]">{form.modo_compensacion}</p>
             </div>
           </div>
 

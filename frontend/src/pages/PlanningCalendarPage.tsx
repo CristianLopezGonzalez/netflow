@@ -465,8 +465,8 @@ export const PlanningCalendarPage = () => {
       <article className="glass-card float-in space-y-3 p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-[color:var(--ink)]">Calendario de turnos</h2>
-            <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
+            <h2 className="text-xl font-bold">Calendario de turnos</h2>
+            <p className="mt-1 text-sm text-[var(--primary-400)]">
               Consulta lo generado por dia y por semana, con foco en la siguiente rotacion.
             </p>
           </div>
@@ -494,56 +494,56 @@ export const PlanningCalendarPage = () => {
         </div>
 
         {selectedWeek && (
-          <p className="glass-soft px-3 py-2 text-sm font-medium text-[color:var(--ink)]">
+          <div className="glass-chip px-3 py-2 text-sm font-bold inline-flex">
             Semana activa: {formatWeek(selectedWeek)}
-          </p>
+          </div>
         )}
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <article className="glass-soft p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">Semana actual</p>
-            <p className="mt-1 text-lg font-bold text-[color:var(--ink)]">
-              {selectedWeekSummary?.principal_usuario_nombre ?? "Sin asignacion principal"}
+          <article className="panel p-3">
+            <p className="stat-label">Semana actual</p>
+            <p className="stat-value mt-1">
+              {selectedWeekSummary?.principal_usuario_nombre ?? "Sin principal"}
             </p>
-            <p className="text-xs text-[color:var(--ink-soft)]">Dias asignados: {selectedWeekSummary?.principal_total_dias ?? 0}</p>
+            <p className="text-[10px] uppercase font-black text-[var(--primary-500)] mt-1">Dias: {selectedWeekSummary?.principal_total_dias ?? 0}</p>
           </article>
 
-          <article className="glass-soft p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">Semana siguiente</p>
-            <p className="mt-1 text-lg font-bold text-[color:var(--ink)]">
-              {nextWeekSummary?.principal_usuario_nombre ?? "Sin semana siguiente"}
+          <article className="panel p-3">
+            <p className="stat-label">Semana siguiente</p>
+            <p className="stat-value mt-1">
+              {nextWeekSummary?.principal_usuario_nombre ?? "Sin siguiente"}
             </p>
-            <p className="text-xs text-[color:var(--ink-soft)]">
-              {nextWeek ? `Semana ${nextWeek.numero_semana}/${nextWeek.anio}` : "No hay semana posterior cargada"}
+            <p className="text-[10px] uppercase font-black text-[var(--primary-500)] mt-1">
+              {nextWeek ? `W${nextWeek.numero_semana}/${nextWeek.anio}` : "No cargada"}
             </p>
           </article>
 
-          <article className="glass-soft border-blue-300 bg-blue-50 p-3 dark:border-blue-500/60 dark:bg-blue-900/30">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">Tu visibilidad</p>
-            <p className="mt-1 text-lg font-bold text-blue-900 dark:text-blue-100">{myAssignmentsThisWeek} dia(s) esta semana</p>
-            <p className="text-xs text-blue-700 dark:text-blue-200">
+          <article className="panel p-3 border-emerald-500/30 bg-emerald-500/5">
+            <p className="text-[10px] font-black uppercase tracking-wide text-emerald-400">Tu visibilidad</p>
+            <p className="stat-value mt-1 text-emerald-100">{myAssignmentsThisWeek} dia(s)</p>
+            <p className="text-[10px] uppercase font-black text-emerald-500/80 mt-1 leading-tight">
               {myAssignmentsNextWeek > 0
-                ? `La semana siguiente tambien te toca (${myAssignmentsNextWeek} dia(s)).`
-                : `Semana siguiente asignada a: ${nextWeekSummary?.principal_usuario_nombre ?? "sin asignar"}.`}
+                ? `Proxima semana: te toca (${myAssignmentsNextWeek} d).`
+                : `Prox. semana: ${nextWeekSummary?.principal_usuario_nombre ?? "sin asignar"}.`}
             </p>
           </article>
         </div>
 
         {selectedWeekSummary && (
-          <article className="glass-soft p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">
-              Distribucion real de la semana activa
+          <article className="glass-panel p-3">
+            <p className="text-[10px] font-black uppercase tracking-wide text-[var(--primary-500)] mb-2">
+              Distribucion real de la semana
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {selectedWeekSummary.empleados.length === 0 && (
-                <p className="text-xs text-[color:var(--ink-soft)]">Sin asignaciones registradas en esta semana.</p>
+                <p className="text-xs text-[var(--primary-600)] italic">Sin asignaciones registradas.</p>
               )}
               {selectedWeekEmployeeLegend.map((employee) => (
                 <span
                   key={`${selectedWeekSummary.semana_id}-${employee.usuario_id}`}
-                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition hover:shadow-sm ${employee.tone.chip}`}
+                  className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase transition hover:scale-105 ${employee.tone.chip}`}
                 >
-                  {employee.usuario_nombre}: {employee.total_dias} dia(s)
+                  {employee.usuario_nombre}: {employee.total_dias}d
                 </span>
               ))}
             </div>
@@ -552,16 +552,16 @@ export const PlanningCalendarPage = () => {
       </article>
 
       <article className="glass-card float-in space-y-4 p-5">
-        <h3 className="text-lg font-bold text-[color:var(--ink)]">Detalle diario de la semana</h3>
+        <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">Detalle diario de la semana</h3>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           {dayOrder.map((day) => (
-            <article key={day} className="glass-panel p-3">
-              <h4 className="text-sm font-bold uppercase tracking-wide text-[color:var(--ink)]">{day}</h4>
+            <article key={day} className="panel p-3">
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--primary-500)]">{day}</h4>
 
-              <div className="mt-2 space-y-2">
+              <div className="mt-3 space-y-2">
                 {groupedByDay[day].length === 0 && (
-                  <p className="text-xs text-[color:var(--ink-soft)]">Sin turnos asignados</p>
+                  <p className="text-[10px] font-medium text-[var(--primary-600)] italic">Sin turnos</p>
                 )}
 
                 {groupedByDay[day].map((assignment) => {
@@ -572,18 +572,17 @@ export const PlanningCalendarPage = () => {
                   return (
                     <div
                       key={assignment.id}
-                      className={`rounded-lg border px-2 py-2 transition hover:shadow-sm ${tone.surface} ${
-                        isMine ? "ring-1 ring-blue-300 dark:ring-blue-500/70" : ""
+                      className={`rounded-lg border px-3 py-2.5 transition-all shadow-sm ${tone.surface} ${
+                        isMine ? "ring-2 ring-emerald-500/40 border-emerald-500/30" : ""
                       }`}
                     >
-                      <p className="text-sm font-semibold">
+                      <p className="text-sm font-bold leading-tight">
                         {ownerName}
-                        {isMine ? " (tu turno)" : ""}
+                        {isMine ? " (tu)" : ""}
                       </p>
-                      <p className="mono text-xs text-[color:var(--ink-soft)]">
+                      <p className="mono mt-1 text-[10px] font-medium opacity-70">
                         {assignment.hora_inicio.slice(0, 5)} - {assignment.hora_fin.slice(0, 5)}
                       </p>
-                      <p className={`mt-1 text-[11px] font-medium ${tone.text}`}>Empleado: {formatDisplayName(ownerName)}</p>
                     </div>
                   );
                 })}
@@ -596,15 +595,15 @@ export const PlanningCalendarPage = () => {
       <article className="glass-card float-in space-y-4 p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h3 className="text-lg font-bold text-[color:var(--ink)]">Calendario de rotacion semanal</h3>
-            <p className="text-sm text-[color:var(--ink-soft)]">
-              Vista mensual por dias: semana activa, tus semanas y la persona asignada en cada bloque.
+            <h3 className="text-xl font-bold">Calendario de rotacion</h3>
+            <p className="text-sm text-[var(--primary-400)]">
+              Vista mensual: semana activa y asignaciones por bloque.
             </p>
           </div>
 
           <div className="grid w-full gap-2 md:w-auto md:grid-cols-[minmax(0,140px)_auto]">
-            <label className="block text-sm text-[color:var(--ink)]">
-              Anio
+            <label className="block text-sm">
+              <span className="text-[10px] font-black uppercase text-[var(--primary-500)]">Anio</span>
               <select
                 value={activeOverviewYear}
                 onChange={(event) => setSelectedOverviewYear(Number.parseInt(event.target.value, 10))}
@@ -623,52 +622,52 @@ export const PlanningCalendarPage = () => {
               <button
                 type="button"
                 onClick={goToPreviousMonth}
-                className="glass-button h-10 rounded-lg px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                className="glass-button h-10 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
                 disabled={!canGoPreviousMonth}
               >
-                Mes anterior
+                ←
               </button>
-              <span className="glass-badge h-10 rounded-lg px-3 py-2 text-sm font-semibold capitalize text-[color:var(--ink)]">
+              <div className="glass-panel h-10 flex items-center justify-center rounded-lg px-4 py-2 text-xs font-black uppercase tracking-wider min-w-[140px]">
                 {activeOverviewMonthTitle}
-              </span>
+              </div>
               <button
                 type="button"
                 onClick={goToNextMonth}
-                className="glass-button h-10 rounded-lg px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                className="glass-button h-10 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
                 disabled={!canGoNextMonth}
               >
-                Mes siguiente
+                →
               </button>
             </div>
           </div>
         </div>
 
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-          <p className="glass-soft px-3 py-2 text-xs text-[color:var(--ink)]">
-            <span className="font-semibold">Activa:</span> semana seleccionada con anillo visible.
-          </p>
-          <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-500/60 dark:bg-blue-900/35 dark:text-blue-100">
-            <span className="font-semibold">Tu dia:</span> prioridad visual con tonos azules.
-          </p>
-          <p className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-800 dark:border-indigo-500/60 dark:bg-indigo-900/35 dark:text-indigo-100">
-            <span className="font-semibold">Dia mixto:</span> varios empleados en el mismo dia.
-          </p>
-          <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-500/60 dark:bg-blue-900/35 dark:text-blue-100">
-            <span className="font-semibold">Hoy:</span> marca puntual para orientarte rapidamente.
-          </p>
-          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-500/60 dark:bg-red-900/35 dark:text-red-100">
-            <span className="font-semibold">Fin de semana:</span> bloque rojo para identificar sabado y domingo.
-          </p>
+          <div className="glass-badge justify-start px-3 py-2 text-[10px]">
+            <span className="text-white mr-1">ACTIVA:</span> ANILLO VISIBLE
+          </div>
+          <div className="glass-badge justify-start border-blue-500/30 bg-blue-500/5 text-blue-300 px-3 py-2 text-[10px]">
+             <span className="text-white mr-1">TU DIA:</span> TONO AZUL
+          </div>
+          <div className="glass-badge justify-start border-indigo-500/30 bg-indigo-500/5 text-indigo-300 px-3 py-2 text-[10px]">
+            <span className="text-white mr-1">MIXTO:</span> VARIOS EMPLEADOS
+          </div>
+          <div className="glass-badge justify-start border-blue-400/50 ring-1 ring-blue-400/30 px-3 py-2 text-[10px]">
+            <span className="text-white mr-1">HOY:</span> MARCO AZUL
+          </div>
+          <div className="glass-badge justify-start border-red-500/30 bg-red-500/5 text-red-300 px-3 py-2 text-[10px]">
+            <span className="text-white mr-1">FINDE:</span> BLOQUE ROJO
+          </div>
         </div>
 
         {selectedWeekEmployeeLegend.length > 0 && (
-          <div className="glass-soft p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">Leyenda por empleado</p>
-            <div className="mt-2 flex flex-wrap gap-2">
+          <div className="glass-panel p-3">
+            <p className="text-[10px] font-black uppercase tracking-wide text-[var(--primary-500)] mb-2">Leyenda</p>
+            <div className="flex flex-wrap gap-2">
               {selectedWeekEmployeeLegend.map((employee) => (
                 <span
                   key={`legend-${employee.usuario_id}`}
-                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${employee.tone.chip}`}
+                  className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${employee.tone.chip}`}
                 >
                   {formatDisplayName(employee.usuario_nombre)}
                 </span>
@@ -677,25 +676,25 @@ export const PlanningCalendarPage = () => {
           </div>
         )}
 
-        {rotationLoading && <p className="text-sm text-[color:var(--ink-soft)]">Cargando calendario de rotacion...</p>}
-        <NoticeBanner kind="error" message={rotationError} />
+        {rotationLoading && <p className="text-sm text-[var(--primary-600)] italic">Cargando rotacion...</p>}
+        {rotationError && <NoticeBanner kind="error" message={rotationError} />}
 
         {!rotationLoading && availableRotationYears.length === 0 && (
-          <p className="text-sm text-[color:var(--ink-soft)]">No hay semanas con datos de rotacion.</p>
+          <p className="text-sm text-[var(--primary-600)] italic">No hay datos de rotacion.</p>
         )}
 
         {!rotationLoading && availableRotationYears.length > 0 && (
           <article key={activeOverviewMonthKey} className="glass-panel p-4">
-            <h4 className="mb-3 text-lg font-bold capitalize text-[color:var(--ink)]">{activeOverviewMonthTitle}</h4>
+            <h4 className="mb-4 text-xs font-black uppercase tracking-[0.2em] text-[var(--primary-400)] text-center">{activeOverviewMonthTitle}</h4>
 
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1">
               {weekdayHeader.map((label, headerIndex) => (
                 <div
                   key={`${activeOverviewMonthKey}-${label}`}
-                  className={`rounded-lg border px-2 py-1 text-center text-xs font-semibold uppercase tracking-wide ${
+                  className={`rounded-lg border px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider ${
                     headerIndex >= 5
-                      ? "border-red-300 bg-red-100 text-red-900 dark:border-red-500/60 dark:bg-red-900/35 dark:text-red-100"
-                      : "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-600 dark:bg-slate-800/70 dark:text-slate-100"
+                      ? "border-red-500/30 bg-red-500/5 text-red-300"
+                      : "border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-500)]"
                   }`}
                 >
                   {label}
@@ -703,7 +702,7 @@ export const PlanningCalendarPage = () => {
               ))}
             </div>
 
-            <div className="mt-2 grid grid-cols-7 gap-2">
+            <div className="mt-2 grid grid-cols-7 gap-1">
               {activeOverviewMonthCells.map((cell, index) => {
                 const isWeekendColumn = index % 7 >= 5;
 
@@ -711,10 +710,10 @@ export const PlanningCalendarPage = () => {
                   return (
                     <div
                       key={`${activeOverviewMonthKey}-empty-${index}`}
-                      className={`min-h-28 rounded-xl border border-dashed ${
+                      className={`min-h-24 rounded-xl border border-dashed ${
                         isWeekendColumn
-                          ? "border-red-200 bg-red-50/40 dark:border-red-500/45 dark:bg-red-900/20"
-                          : "border-slate-200 bg-white/40 dark:border-slate-600 dark:bg-slate-900/35"
+                          ? "border-red-500/10 bg-red-500/[0.02]"
+                          : "border-[var(--color-surface-border)] bg-[var(--color-background)]/30"
                       }`}
                     />
                   );
@@ -729,15 +728,17 @@ export const PlanningCalendarPage = () => {
                   return (
                     <div
                       key={`${activeOverviewMonthKey}-${iso}`}
-                      className={`min-h-28 rounded-xl border p-2 ${
+                      className={`min-h-24 rounded-xl border p-2 ${
                         isWeekend
-                          ? "border-red-300 bg-red-50 text-red-900 dark:border-red-500/60 dark:bg-red-900/35 dark:text-red-100"
-                          : "border-slate-200 bg-white text-slate-500 dark:border-slate-600 dark:bg-slate-900/55 dark:text-slate-200"
+                          ? "border-red-500/30 bg-red-500/5 text-red-100"
+                          : "border-[var(--color-surface-border)] bg-[var(--color-background)]/60 text-[var(--primary-500)]"
                       }`}
                     >
-                      <p className="text-[11px] font-semibold uppercase tracking-wide">{cell.getUTCDate()}</p>
-                      <p className="mt-1 text-[11px]">{isWeekend ? "Fin de semana" : "Sin semana"}</p>
-                      {isToday && <p className="mt-1 text-[11px] font-semibold text-blue-700 dark:text-blue-200">Hoy</p>}
+                      <div className="flex justify-between">
+                        <p className="text-[10px] font-black opacity-50">{cell.getUTCDate()}</p>
+                        {isToday && <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>}
+                      </div>
+                      <p className="mt-1 text-[9px] font-bold uppercase opacity-30">{isWeekend ? "Finde" : "Vacio"}</p>
                     </div>
                   );
                 }
@@ -750,29 +751,26 @@ export const PlanningCalendarPage = () => {
                 const ownerTone = getEmployeeTone(ownerId);
                 const isMine = ownerId === user?.id;
                 const isSelected = rotationItem.semana_id === selectedWeekId;
-                const isMixedWeek = rotationItem.empleados.length > 1;
                 const isMixedDay = (diaDetalle?.usuarios.length ?? 0) > 1;
                 const ownerName = diaDetalle?.usuario_nombre ?? rotationItem.principal_usuario_nombre ?? "Sin asignar";
                 const ownerDisplayName = formatDisplayName(ownerName);
-                const dayDistributionLabel = isMixedDay
-                  ? diaDetalle?.usuarios
-                    .slice(0, 2)
-                    .map((employee) => `${formatDisplayName(employee.usuario_nombre)} ${employee.total_turnos}`)
-                    .join(" · ")
-                  : null;
+                
                 const baseClasses = isMixedDay
-                  ? "border-indigo-300 bg-indigo-50/95 text-indigo-900 dark:border-indigo-500/60 dark:bg-indigo-900/35 dark:text-indigo-100"
+                  ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-100"
                   : isMine
-                    ? "border-blue-300 bg-blue-50/95 text-blue-900 dark:border-blue-500/60 dark:bg-blue-900/35 dark:text-blue-100"
+                    ? "border-blue-500/40 bg-blue-500/10 text-blue-100"
                     : ownerTone.surface;
+                
                 const weekendClasses = isWeekend
-                  ? "border-red-300 bg-red-50 text-red-900 dark:border-red-500/60 dark:bg-red-900/35 dark:text-red-100"
+                  ? "border-red-500/40 bg-red-500/10 text-red-100"
                   : "";
+                
                 const activeClasses = isSelected
-                  ? "ring-2 ring-slate-400/70 shadow-md dark:ring-slate-300/70"
-                  : "hover:border-slate-400 hover:shadow-sm dark:hover:border-slate-400";
-                const todayClasses = isToday ? "ring-2 ring-blue-300/80 dark:ring-blue-400/75" : "";
-                const helperTextClasses = isMixedDay ? "text-indigo-700 dark:text-indigo-200" : ownerTone.text;
+                  ? "ring-2 ring-[var(--primary-400)] shadow-xl z-20 scale-[1.02]"
+                  : "hover:scale-[1.01] hover:shadow-lg";
+                
+                const todayClasses = isToday ? "ring-2 ring-blue-400/60" : "";
+                const helperTextClasses = isMixedDay ? "text-indigo-300" : ownerTone.text;
 
                 return (
                   <button
@@ -782,22 +780,26 @@ export const PlanningCalendarPage = () => {
                       setSelectedWeekId(rotationItem.semana_id);
                       void reloadWeekDetail(rotationItem.semana_id);
                     }}
-                    className={`min-h-28 w-full rounded-xl border p-2 text-left transition ${baseClasses} ${weekendClasses} ${activeClasses} ${todayClasses}`}
+                    className={`min-h-24 w-full rounded-xl border p-2 text-left transition-all ${baseClasses} ${weekendClasses} ${activeClasses} ${todayClasses}`}
                   >
-                    <p className="text-[11px] font-semibold uppercase tracking-wide">{cell.getUTCDate()}</p>
-                    <p className="mt-1 text-xs font-bold">Sem {rotationItem.numero_semana}</p>
-                    <p className="mt-1 text-xs font-semibold">
-                      De: {ownerDisplayName}
+                    <div className="flex justify-between items-start">
+                      <p className="text-[10px] font-black opacity-60">{cell.getUTCDate()}</p>
+                      <p className="text-[9px] font-bold opacity-40">W{rotationItem.numero_semana}</p>
+                    </div>
+                    
+                    <p className="mt-2 text-[10px] font-black leading-tight truncate">
+                      {ownerDisplayName}
                     </p>
-                    <p className={`text-[11px] ${helperTextClasses}`}>
-                      {isMixedDay
-                        ? dayDistributionLabel || "Dia mixto"
-                        : isMixedWeek
-                          ? "Semana mixta"
-                          : `${rotationItem.principal_total_dias} dia(s)`}
-                    </p>
+                    
+                    <div className="mt-1">
+                      {isMixedDay ? (
+                        <p className={`text-[8px] font-black uppercase tracking-tighter ${helperTextClasses}`}>MIXTO</p>
+                      ) : (
+                        <p className={`text-[8px] font-black uppercase tracking-tighter opacity-70`}>{rotationItem.principal_total_dias}D</p>
+                      )}
+                    </div>
 
-                    <div className="mt-1 flex flex-wrap gap-1">
+                    <div className="mt-1 flex flex-wrap gap-0.5">
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${ownerTone.badge}`}>
                         {ownerDisplayName}
                       </span>

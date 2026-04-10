@@ -466,33 +466,33 @@ export const PlanningGenerationPage = () => {
 
   return (
     <article className="glass-card float-in p-5">
-      <h2 className="text-xl font-bold text-slate-900">Generacion automatica</h2>
-      <p className="mt-1 text-sm text-slate-600">
+      <h2 className="text-xl font-bold">Generacion automatica</h2>
+      <p className="mt-1 text-sm text-[var(--primary-400)]">
         Flujo guiado para configurar alcance, ajustar equipo y publicar la planificacion.
       </p>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <article className="glass-soft p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alcance activo</p>
-          <p className="mt-1 text-sm font-bold text-slate-900">{scopeLabel}</p>
+        <article className="panel p-3">
+          <p className="stat-label">Alcance activo</p>
+          <p className="mt-1 text-sm font-bold">{scopeLabel}</p>
         </article>
 
-        <article className="glass-soft p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Semanas en alcance</p>
-          <p className="mt-1 text-lg font-bold text-slate-900">{selectedScopeWeeks.length}</p>
+        <article className="panel p-3">
+          <p className="stat-label">Semanas en alcance</p>
+          <p className="mt-1 text-lg font-bold">{selectedScopeWeeks.length}</p>
         </article>
 
-        <article className="glass-soft p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado actual</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">
-            Publicadas {selectedScopePublishedCount} · Borrador {selectedScopeDraftWeekIds.length}
+        <article className="panel p-3">
+          <p className="stat-label">Estado actual</p>
+          <p className="mt-1 text-sm font-semibold text-[var(--primary-200)]">
+            Pub. {selectedScopePublishedCount} · Borr. {selectedScopeDraftWeekIds.length}
           </p>
         </article>
 
-        <article className="glass-soft p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Equipo configurado</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">
-            {selectedEmployeesFilled}/{autoEmployeeCount} empleado(s) seleccionado(s)
+        <article className="panel p-3">
+          <p className="stat-label">Equipo configurado</p>
+          <p className="mt-1 text-sm font-semibold text-[var(--primary-200)]">
+            {selectedEmployeesFilled}/{autoEmployeeCount} empleado(s)
           </p>
         </article>
       </div>
@@ -511,10 +511,10 @@ export const PlanningGenerationPage = () => {
                 aria-current={isActive ? "step" : undefined}
                 className={`rounded-lg border px-3 py-2 text-left text-sm font-semibold transition ${
                   isActive
-                    ? "glass-step glass-step-active"
+                    ? "bg-[var(--primary-700)] border-[var(--primary-600)] text-white shadow-sm"
                     : isCompleted
-                      ? "glass-step glass-step-completed"
-                      : "glass-step"
+                      ? "bg-emerald-900/20 border-emerald-900/30 text-emerald-400"
+                      : "bg-[var(--color-surface-hover)] border-[var(--color-surface-border)] text-[var(--primary-500)]"
                 }`}
               >
                 Paso {step}
@@ -525,14 +525,14 @@ export const PlanningGenerationPage = () => {
 
         {currentStep === 1 && (
         <section className="glass-soft p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Paso 1 · Alcance y modo</p>
+          <p className="text-[10px] font-black uppercase tracking-wide text-[var(--primary-500)]">Paso 1 · Alcance y modo</p>
 
-          <div className="glass-segment mt-3 inline-flex rounded-xl p-1">
+          <div className="mt-3 inline-flex rounded-xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-1">
             <button
               type="button"
               onClick={() => setAutoMode("mes")}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                autoMode === "mes" ? "glass-segment-button-active" : "glass-segment-button"
+                autoMode === "mes" ? "bg-[var(--primary-700)] text-white shadow-sm" : "text-[var(--primary-400)] hover:text-white"
               }`}
             >
               Generar mes
@@ -541,7 +541,7 @@ export const PlanningGenerationPage = () => {
               type="button"
               onClick={() => setAutoMode("anio")}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                autoMode === "anio" ? "glass-segment-button-active" : "glass-segment-button"
+                autoMode === "anio" ? "bg-[var(--primary-700)] text-white shadow-sm" : "text-[var(--primary-400)] hover:text-white"
               }`}
             >
               Generar anio
@@ -549,39 +549,41 @@ export const PlanningGenerationPage = () => {
           </div>
 
           {autoMode === "anio" && (
-            <div className="glass-segment mt-3 inline-flex rounded-xl p-1">
-              <button
-                type="button"
-                onClick={() => setAnnualMode("generar")}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                  annualMode === "generar" ? "glass-segment-button-active" : "glass-segment-button"
-                }`}
-              >
-                Generar anual
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAnnualMode("editar");
-                  if (yearsWithCalendar.length > 0 && !yearsWithCalendar.includes(selectedYear)) {
-                    setAutoForm((current) => ({
-                      ...current,
-                      anio: `${yearsWithCalendar[0]}`,
-                    }));
-                  }
-                }}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                  annualMode === "editar" ? "glass-segment-button-active" : "glass-segment-button"
-                }`}
-              >
-                Editar anual
-              </button>
+            <div className="mt-3 block">
+              <div className="inline-flex rounded-xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-1">
+                <button
+                  type="button"
+                  onClick={() => setAnnualMode("generar")}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    annualMode === "generar" ? "bg-[var(--primary-700)] text-white shadow-sm" : "text-[var(--primary-400)] hover:text-white"
+                  }`}
+                >
+                  Nuevo anual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAnnualMode("editar");
+                    if (yearsWithCalendar.length > 0 && !yearsWithCalendar.includes(selectedYear)) {
+                      setAutoForm((current) => ({
+                        ...current,
+                        anio: `${yearsWithCalendar[0]}`,
+                      }));
+                    }
+                  }}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    annualMode === "editar" ? "bg-[var(--primary-700)] text-white shadow-sm" : "text-[var(--primary-400)] hover:text-white"
+                  }`}
+                >
+                  Editar anual
+                </button>
+              </div>
             </div>
           )}
 
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             {autoMode === "anio" && annualMode === "editar" && yearsWithCalendar.length > 0 ? (
-              <label className="block text-sm text-slate-700">
+              <label className="block text-sm text-[var(--primary-300)]">
                 Anio a editar
                 <select
                   value={autoForm.anio}
@@ -601,7 +603,7 @@ export const PlanningGenerationPage = () => {
                 </select>
               </label>
             ) : (
-              <label className="block text-sm text-slate-700">
+              <label className="block text-sm text-[var(--primary-300)]">
                 Anio
                 <input
                   type="number"
@@ -621,7 +623,7 @@ export const PlanningGenerationPage = () => {
             )}
 
             {autoMode === "mes" && (
-              <label className="block text-sm text-slate-700">
+              <label className="block text-sm text-[var(--primary-300)]">
                 Mes
                 <select
                   value={autoForm.mes}
@@ -642,8 +644,8 @@ export const PlanningGenerationPage = () => {
               </label>
             )}
 
-            <label className="block text-sm text-slate-700">
-              Estado semanas
+            <label className="block text-sm text-[var(--primary-300)]">
+              Estado inicial
               <select
                 value={autoForm.estado}
                 onChange={(event) =>
@@ -668,10 +670,10 @@ export const PlanningGenerationPage = () => {
                 disabled={autoLoadingTemplate || autoBusy}
                 className="glass-button rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
               >
-                {autoLoadingTemplate ? "Cargando plantilla..." : "Cargar plantilla del anio"}
+                {autoLoadingTemplate ? "Cargando..." : "Cargar equipo del anio"}
               </button>
-              <p className="text-xs text-slate-500">
-                Recupera el equipo del calendario actual y ajusta altas o bajas antes de recalcular.
+              <p className="text-[10px] uppercase font-black tracking-tight text-[var(--primary-500)]">
+                Recupera el equipo del calendario para ajustar antes de recalcular.
               </p>
             </div>
           )}
@@ -680,9 +682,9 @@ export const PlanningGenerationPage = () => {
             <button
               type="button"
               onClick={goToStep2}
-              className="glass-button glass-button-primary rounded-lg px-4 py-2 text-sm font-semibold"
+              className="glass-button glass-button-primary rounded-lg px-6 py-2 text-sm font-bold"
             >
-              Continuar a paso 2
+              Paso 2 →
             </button>
           </div>
         </section>
@@ -690,10 +692,10 @@ export const PlanningGenerationPage = () => {
 
         {currentStep === 2 && (
         <section className="glass-soft p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Paso 2 · Equipo de rotacion</p>
+          <p className="text-[10px] font-black uppercase tracking-wide text-[var(--primary-500)]">Paso 2 · Equipo de rotacion</p>
 
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <label className="block text-sm text-slate-700">
+            <label className="block text-sm text-[var(--primary-300)]">
               Cantidad empleados
               <input
                 type="number"
@@ -719,13 +721,13 @@ export const PlanningGenerationPage = () => {
                 className="glass-input mt-1 w-full rounded-lg px-3 py-2"
                 required
               />
-              <p className="mt-1 text-xs text-slate-500">Activos disponibles: {availableEmployeeCount}</p>
+              <p className="mt-1 text-[10px] font-medium text-[var(--primary-500)]">Activos disponibles: {availableEmployeeCount}</p>
             </label>
           </div>
 
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: autoEmployeeCount }).map((_, index) => (
-              <label key={`auto-employee-${index}`} className="block text-sm text-slate-700">
+              <label key={`auto-employee-${index}`} className="block text-sm text-[var(--primary-300)]">
                 Empleado {index + 1}
                 <select
                   value={autoEmployeeIds[index] ?? ""}
@@ -756,14 +758,14 @@ export const PlanningGenerationPage = () => {
               onClick={() => setCurrentStep(1)}
               className="glass-button rounded-lg px-4 py-2 text-sm font-semibold"
             >
-              Volver a paso 1
+              ← Paso 1
             </button>
             <button
               type="button"
               onClick={goToStep3}
-              className="glass-button glass-button-primary rounded-lg px-4 py-2 text-sm font-semibold"
+              className="glass-button glass-button-primary rounded-lg px-6 py-2 text-sm font-bold"
             >
-              Continuar a paso 3
+              Paso 3 →
             </button>
           </div>
         </section>
@@ -771,27 +773,25 @@ export const PlanningGenerationPage = () => {
 
         {currentStep === 3 && (
         <section className="glass-soft p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Paso 3 · Ejecutar y publicar</p>
-          <p className="mt-2 text-xs text-slate-600">{nextStepHint}</p>
+          <p className="text-[10px] font-black uppercase tracking-wide text-[var(--primary-500)]">Paso 3 · Ejecutar y publicar</p>
+          <p className="mt-2 text-xs font-medium text-[var(--primary-400)]">{nextStepHint}</p>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => setCurrentStep(2)}
               className="glass-button rounded-lg px-4 py-2 text-sm font-semibold"
             >
-              Volver a paso 2
+              ← Paso 2
             </button>
 
             <button
               type="submit"
               disabled={autoBusy || autoLoadingTemplate || publishBusy}
-              className="glass-button glass-button-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              className="glass-button glass-button-primary rounded-lg px-6 py-2.5 text-sm font-bold shadow-lg disabled:opacity-50"
             >
               {autoBusy
-                ? autoMode === "anio" && annualMode === "editar"
-                  ? "Recalculando..."
-                  : "Generando..."
+                ? "Ejecutando..."
                 : autoMode === "mes"
                   ? "Generar plan mensual"
                   : annualMode === "editar"

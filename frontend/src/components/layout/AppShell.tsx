@@ -38,18 +38,27 @@ export const AppShell = () => {
     <main className="min-h-screen w-full">
       <header className="glass-topbar sticky top-0 z-40 w-full">
         <div className="flex w-full flex-col gap-3 px-3 py-3 md:px-6 lg:px-8">
-          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-            <div>
-              <p className="mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--accent)]">Netflow semanal</p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-bold text-[color:var(--ink)] md:text-3xl">{user?.nombre}</h1>
-                <span className="glass-badge rounded-full px-2.5 py-1 text-xs font-semibold">
-                  Rol: {user?.rol}
-                </span>
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div className="flex items-center gap-4">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-[var(--color-surface-border)] shadow-xl">
+                <img
+                  src="/logo.webp"
+                  alt="Netflow Logo"
+                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
+                />
               </div>
-              <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
-                Panel de turnos, intercambios y bolsa en una sola vista.
-              </p>
+              <div>
+                <p className="mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--accent)]">Netflow</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-bold text-[color:var(--ink)] md:text-3xl">{user?.nombre}</h1>
+                  <span className="glass-badge rounded-full px-2.5 py-1 text-xs font-semibold">
+                    Rol: {user?.rol}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
+                  Panel de turnos, intercambios y bolsa en una sola vista.
+                </p>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -90,50 +99,57 @@ export const AppShell = () => {
 
       <section className="w-full space-y-4 px-3 py-4 md:px-6 lg:px-8">
         <section className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-          <article className="glass-card glass-interactive rounded-2xl px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">Semanas cargadas</p>
-            <p className="mt-1 text-2xl font-bold text-[color:var(--ink)]">{weeks.length}</p>
+          <article className="stat-card glass-interactive">
+            <p className="stat-label">Semanas cargadas</p>
+            <p className="stat-value">{weeks.length}</p>
           </article>
-          <article className="glass-card glass-interactive rounded-2xl px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">Mis turnos</p>
-            <p className="mt-1 text-2xl font-bold text-[color:var(--ink)]">{myAssignments.length}</p>
+          <article className="stat-card glass-interactive">
+            <p className="stat-label">Mis turnos registrados</p>
+            <p className="stat-value">{myAssignments.length}</p>
           </article>
-          <article className="glass-card glass-interactive rounded-2xl px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">Pendientes</p>
-            <p className="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-300">
-              {pendientesRecibidas} recibidas · {pendientesEnviadas} enviadas
+          <article className="stat-card glass-interactive">
+            <p className="stat-label">Intercambios pendientes</p>
+            <p className="stat-value text-amber-400">
+              {pendientesRecibidas} <span className="text-[10px] opacity-60">recib.</span> · {pendientesEnviadas} <span className="text-[10px] opacity-60">env.</span>
             </p>
           </article>
-          <article className="glass-card glass-interactive rounded-2xl px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">Saldo neto bolsa</p>
-            <p
-              className={`mt-1 text-2xl font-bold ${
-                saldoNeto > 0
-                  ? "text-emerald-700 dark:text-emerald-300"
-                  : saldoNeto < 0
-                    ? "text-rose-700 dark:text-rose-300"
-                    : "text-slate-900 dark:text-slate-100"
-              }`}
-            >
-              {saldoNeto > 0 ? `+${saldoNeto}` : saldoNeto} dia(s)
-            </p>
-            <p className="text-xs text-[color:var(--ink-soft)]">Me deben {totalMeDeben} · Debo {totalDebo}</p>
+          <article className="stat-card glass-interactive">
+            <p className="stat-label">Saldo neto bolsa</p>
+            <div className="flex items-baseline gap-2">
+              <p
+                className={`stat-value ${
+                  saldoNeto > 0
+                    ? "text-emerald-400"
+                    : saldoNeto < 0
+                      ? "text-rose-400"
+                      : "text-[var(--primary-200)]"
+                }`}
+              >
+                {saldoNeto > 0 ? `+${saldoNeto}` : saldoNeto} d
+              </p>
+              <p className="text-[10px] font-bold text-[var(--primary-500)]">
+                ME DEBEN {totalMeDeben} · DEBO {totalDebo}
+              </p>
+            </div>
           </article>
         </section>
 
         {loading && (
-          <p className="glass-panel px-4 py-3 text-sm font-medium text-[color:var(--ink-soft)]">
-            Sincronizando informacion...
-          </p>
+          <div className="glass-panel px-4 py-3 flex items-center gap-2">
+            <div className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse"></div>
+            <p className="text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]">
+              Sincronizando informacion del servidor...
+            </p>
+          </div>
         )}
 
         {lastError && (
-          <div className="notice-banner notice-banner--error flex items-center justify-between gap-3 px-4 py-3 text-sm">
-            <span>{lastError}</span>
+          <div className="notice-banner notice-banner--error flex items-center justify-between gap-3 px-4 py-3">
+            <span className="text-sm font-medium">{lastError}</span>
             <button
               type="button"
               onClick={clearLastError}
-              className="glass-button rounded-lg px-3 py-1.5 text-xs font-semibold"
+              className="glass-button h-8 rounded-lg px-3 text-[10px]"
             >
               Cerrar
             </button>
