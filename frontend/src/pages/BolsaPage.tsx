@@ -4,6 +4,8 @@ import type { FormEvent } from "react";
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
 import { WeekSelector } from "../components/common/WeekSelector";
+import CustomSelect from "../components/common/CustomSelect";
+import CustomDatePicker from "../components/common/CustomDatePicker";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import type { Asignacion, BolsaMovimiento, BolsaSaldoCompanero, Semana } from "../types";
@@ -763,33 +765,29 @@ export const BolsaPage = () => {
             </div>
           </div>
 
-          <label className="block text-sm text-[var(--primary-300)]">
+          <div className="block text-sm text-[var(--primary-300)]">
             {form.direccion === "cobrar" ? "Companero deudor" : "Companero acreedor"}
-            <select
+            <CustomSelect
               value={form.usuario_id}
-              onChange={(event) => {
+              onChange={(val) => {
                 setSelectedDayOriginIds([]);
                 setForm((current) => ({
                   ...current,
-                  usuario_id: event.target.value,
+                  usuario_id: String(val),
                   asignacion_origen_id: "",
                 }));
               }}
               disabled={companionsDisponibles.length === 0}
-              className={formControlClass}
-              required
-            >
-              <option value="">
-                {companionsDisponibles.length === 0 ? "Sin usuarios disponibles" : "Selecciona usuario"}
-              </option>
-              {companionsDisponibles.map((item) => (
-                <option key={item.usuario.id} value={item.usuario.id}>
-                  {item.usuario.nombre} (
-                  {form.direccion === "cobrar" ? `te debe ${item.me_deben}` : `le debes ${item.debo}`})
-                </option>
-              ))}
-            </select>
-          </label>
+              options={[
+                { value: "", label: companionsDisponibles.length === 0 ? "Sin usuarios disponibles" : "Selecciona usuario" },
+                ...companionsDisponibles.map(item => ({
+                  value: item.usuario.id,
+                  label: `${item.usuario.nombre} (${form.direccion === "cobrar" ? `te debe ${item.me_deben}` : `le debes ${item.debo}`})`
+                }))
+              ]}
+              className="mt-2"
+            />
+          </div>
 
           <div className="glass-soft px-3 py-2 text-sm text-[var(--primary-300)]">
             {!form.usuario_id && <p>Selecciona un companero para ver el saldo individual.</p>}
@@ -818,24 +816,25 @@ export const BolsaPage = () => {
             )}
           </div>
 
-          <label className="block text-sm text-slate-700">
+          <div className="block text-sm text-slate-700">
             Tipo
-            <select
+            <CustomSelect
               value={form.tipo}
-              onChange={(event) => {
+              onChange={(val) => {
                 setSelectedDayOriginIds([]);
                 setForm((current) => ({
                   ...current,
-                  tipo: event.target.value as "dia" | "semana",
+                  tipo: val as "dia" | "semana",
                   asignacion_origen_id: "",
                 }));
               }}
-              className={formControlClass}
-            >
-              <option value="dia">Dia</option>
-              <option value="semana">Semana</option>
-            </select>
-          </label>
+              options={[
+                { value: "dia", label: "Dia" },
+                { value: "semana", label: "Semana" },
+              ]}
+              className="mt-2"
+            />
+          </div>
 
           {form.tipo === "dia" ? (
             <div className={panelCardClass}>
@@ -1043,66 +1042,66 @@ export const BolsaPage = () => {
               />
             </label>
 
-            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
+            <div className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Tipo
-              <select
+              <CustomSelect
                 value={movementTypeFilter}
-                onChange={(event) => setMovementTypeFilter(event.target.value as MovementTypeFilter)}
-                className={movementControlClass}
-              >
-                <option value="todos">Todos</option>
-                <option value="genera_deuda">Genera deuda</option>
-                <option value="compensa_deuda">Compensa deuda</option>
-              </select>
-            </label>
+                onChange={(val) => setMovementTypeFilter(val as MovementTypeFilter)}
+                options={[
+                  { value: "todos", label: "Todos" },
+                  { value: "genera_deuda", label: "Genera deuda" },
+                  { value: "compensa_deuda", label: "Compensa deuda" },
+                ]}
+                className="mt-1"
+                hSize="h-10"
+              />
+            </div>
 
-            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
+            <div className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Companero
-              <select
+              <CustomSelect
                 value={movementCompanionFilter}
-                onChange={(event) => setMovementCompanionFilter(event.target.value)}
-                className={movementControlClass}
-              >
-                <option value="todos">Todos</option>
-                {movementCompanionOptions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.nombre}
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={(val) => setMovementCompanionFilter(String(val))}
+                options={[
+                  { value: "todos", label: "Todos" },
+                  ...movementCompanionOptions.map(item => ({ value: item.id, label: item.nombre }))
+                ]}
+                className="mt-1"
+                hSize="h-10"
+              />
+            </div>
 
-            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
+            <div className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Orden
-              <select
+              <CustomSelect
                 value={movementOrder}
-                onChange={(event) => setMovementOrder(event.target.value as MovementOrder)}
-                className={movementControlClass}
-              >
-                <option value="desc">Mas recientes primero</option>
-                <option value="asc">Mas antiguos primero</option>
-              </select>
-            </label>
+                onChange={(val) => setMovementOrder(val as MovementOrder)}
+                options={[
+                  { value: "desc", label: "Mas recientes primero" },
+                  { value: "asc", label: "Mas antiguos primero" },
+                ]}
+                className="mt-1"
+                hSize="h-10"
+              />
+            </div>
 
-            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
+            <div className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Desde
-              <input
-                type="date"
+              <CustomDatePicker
                 value={movementDateFrom}
-                onChange={(event) => setMovementDateFrom(event.target.value)}
-                className={movementControlClass}
+                onChange={setMovementDateFrom}
+                className="mt-1"
               />
-            </label>
+            </div>
 
-            <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
+            <div className="block text-xs font-semibold uppercase tracking-wide text-[var(--primary-400)]">
               Hasta
-              <input
-                type="date"
+              <CustomDatePicker
                 value={movementDateTo}
-                onChange={(event) => setMovementDateTo(event.target.value)}
-                className={movementControlClass}
+                onChange={setMovementDateTo}
+                className="mt-1"
               />
-            </label>
+            </div>
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">

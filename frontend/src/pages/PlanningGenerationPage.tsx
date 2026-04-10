@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
+import CustomSelect from "../components/common/CustomSelect";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import type { GeneracionCalendarioResumen, Semana } from "../types";
@@ -14,7 +15,7 @@ const monthNameFormatter = new Intl.DateTimeFormat("es-ES", {
 });
 
 const monthOptions = Array.from({ length: 12 }, (_, index) => ({
-  value: index + 1,
+  value: (index + 1).toString(),
   label: monthNameFormatter.format(new Date(Date.UTC(2026, index, 1))),
 }));
 
@@ -583,25 +584,20 @@ export const PlanningGenerationPage = () => {
 
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             {autoMode === "anio" && annualMode === "editar" && yearsWithCalendar.length > 0 ? (
-              <label className="block text-sm text-[var(--primary-300)]">
+              <div className="block text-sm text-[var(--primary-300)]">
                 Anio a editar
-                <select
+                <CustomSelect
                   value={autoForm.anio}
-                  onChange={(event) =>
+                  onChange={(val) =>
                     setAutoForm((current) => ({
                       ...current,
-                      anio: event.target.value,
+                      anio: String(val),
                     }))
                   }
-                  className="glass-input mt-1 w-full rounded-lg px-3 py-2"
-                >
-                  {yearsWithCalendar.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  options={yearsWithCalendar.map((year) => ({ value: year, label: `${year}` }))}
+                  className="mt-1"
+                />
+              </div>
             ) : (
               <label className="block text-sm text-[var(--primary-300)]">
                 Anio
@@ -623,43 +619,39 @@ export const PlanningGenerationPage = () => {
             )}
 
             {autoMode === "mes" && (
-              <label className="block text-sm text-[var(--primary-300)]">
+              <div className="block text-sm text-[var(--primary-300)]">
                 Mes
-                <select
+                <CustomSelect
                   value={autoForm.mes}
-                  onChange={(event) =>
+                  onChange={(val) =>
                     setAutoForm((current) => ({
                       ...current,
-                      mes: event.target.value,
+                      mes: String(val),
                     }))
                   }
-                  className="glass-input mt-1 w-full rounded-lg px-3 py-2"
-                >
-                  {monthOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  options={monthOptions}
+                  className="mt-1"
+                />
+              </div>
             )}
 
-            <label className="block text-sm text-[var(--primary-300)]">
+            <div className="block text-sm text-[var(--primary-300)]">
               Estado inicial
-              <select
+              <CustomSelect
                 value={autoForm.estado}
-                onChange={(event) =>
+                onChange={(val) =>
                   setAutoForm((current) => ({
                     ...current,
-                    estado: event.target.value as "borrador" | "publicado",
+                    estado: val as "borrador" | "publicado",
                   }))
                 }
-                className="glass-input mt-1 w-full rounded-lg px-3 py-2"
-              >
-                <option value="borrador">borrador</option>
-                <option value="publicado">publicado</option>
-              </select>
-            </label>
+                options={[
+                  { value: "borrador", label: "Borrador" },
+                  { value: "publicado", label: "Publicado" },
+                ]}
+                className="mt-1"
+              />
+            </div>
           </div>
 
           {autoMode === "anio" && annualMode === "editar" && (
@@ -727,28 +719,24 @@ export const PlanningGenerationPage = () => {
 
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: autoEmployeeCount }).map((_, index) => (
-              <label key={`auto-employee-${index}`} className="block text-sm text-[var(--primary-300)]">
+              <div key={`auto-employee-${index}`} className="block text-sm text-[var(--primary-300)]">
                 Empleado {index + 1}
-                <select
+                <CustomSelect
                   value={autoEmployeeIds[index] ?? ""}
-                  onChange={(event) =>
+                  onChange={(val) =>
                     setAutoEmployeeIds((current) => {
                       const next = [...current];
-                      next[index] = event.target.value;
+                      next[index] = String(val);
                       return next;
                     })
                   }
-                  className="glass-input mt-1 w-full rounded-lg px-3 py-2"
-                  required
-                >
-                  <option value="">Selecciona empleado</option>
-                  {availableEmployees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.nombre}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  options={[
+                    { value: "", label: "Selecciona empleado" },
+                    ...availableEmployees.map(e => ({ value: e.id, label: e.nombre }))
+                  ]}
+                  className="mt-1"
+                />
+              </div>
             ))}
           </div>
 

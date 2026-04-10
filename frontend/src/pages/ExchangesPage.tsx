@@ -4,6 +4,8 @@ import type { FormEvent } from "react";
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
 import { WeekSelector } from "../components/common/WeekSelector";
+import CustomSelect from "../components/common/CustomSelect";
+import CustomDatePicker from "../components/common/CustomDatePicker";
 import { useAppData } from "../context/AppDataContext";
 import type { Asignacion, EstadoSolicitud, Semana, SolicitudIntercambio } from "../types";
 import { asErrorMessage, dayOrder, formatAssignment, formatWeek } from "../utils/formatters";
@@ -920,12 +922,12 @@ export const ExchangesPage = () => {
             </div>
           </div>
 
-          <label className="block text-sm text-slate-700">
+          <div className="block text-sm text-slate-700">
             Companero receptor
-            <select
+            <CustomSelect
               value={form.receptor_id}
-              onChange={(event) => {
-                const receptorId = event.target.value;
+              onChange={(val) => {
+                const receptorId = String(val);
                 setForm((current) => ({
                   ...current,
                   receptor_id: receptorId,
@@ -948,56 +950,54 @@ export const ExchangesPage = () => {
                   return companionWeekOptions[0]?.id ?? "";
                 });
               }}
-              className={formControlClass}
-              required
-            >
-              <option value="">Selecciona usuario</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
+              options={[
+                { value: "", label: "Selecciona usuario" },
+                ...users.map(u => ({ value: u.id, label: u.nombre }))
+              ]}
+              className="mt-2"
+            />
+          </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="block text-sm text-slate-700">
+            <div className="block text-sm text-slate-700">
               Tipo
-              <select
+              <CustomSelect
                 value={form.tipo}
-                onChange={(event) =>
+                onChange={(val) =>
                   setForm((current) => ({
                     ...current,
-                    tipo: event.target.value,
+                    tipo: String(val),
                     asignacion_origen_id: "",
                     asignacion_destino_id: "",
                   }))
                 }
-                className={formControlClass}
-              >
-                <option value="dia">Dia</option>
-                <option value="semana">Semana</option>
-              </select>
-            </label>
+                options={[
+                  { value: "dia", label: "Dia" },
+                  { value: "semana", label: "Semana" },
+                ]}
+                className="mt-2"
+              />
+            </div>
 
-            <label className="block text-sm text-slate-700">
+            <div className="block text-sm text-slate-700">
               Modo de compensacion
-              <select
+              <CustomSelect
                 value={form.modo_compensacion}
-                onChange={(event) => {
+                onChange={(val) => {
                   setSelectedDestinationIds([]);
                   setForm((current) => ({
                     ...current,
-                    modo_compensacion: event.target.value,
+                    modo_compensacion: String(val),
                     asignacion_destino_id: "",
                   }));
                 }}
-                className={formControlClass}
-              >
-                <option value="bolsa">Bolsa</option>
-                <option value="inmediata">Inmediata</option>
-              </select>
-            </label>
+                options={[
+                  { value: "bolsa", label: "Bolsa" },
+                  { value: "inmediata", label: "Inmediata" },
+                ]}
+                className="mt-2"
+              />
+            </div>
           </div>
 
           <div className="grid gap-3 lg:grid-cols-2">

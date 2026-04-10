@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
 import { WeekSelector } from "../components/common/WeekSelector";
+import CustomSelect from "../components/common/CustomSelect";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import type { Asignacion, DiaSemana, SemanaRotacionResumen } from "../types";
@@ -602,21 +603,16 @@ export const PlanningCalendarPage = () => {
           </div>
 
           <div className="grid w-full gap-2 md:w-auto md:grid-cols-[minmax(0,140px)_auto]">
-            <label className="block text-sm">
+            <div className="block text-sm">
               <span className="text-[10px] font-black uppercase text-[var(--primary-500)]">Anio</span>
-              <select
+              <CustomSelect
                 value={activeOverviewYear}
-                onChange={(event) => setSelectedOverviewYear(Number.parseInt(event.target.value, 10))}
-                className="glass-input mt-1 w-full rounded-lg px-3 py-2"
+                onChange={(val) => setSelectedOverviewYear(Number.parseInt(String(val), 10))}
+                options={availableRotationYears.map(year => ({ value: year, label: `${year}` }))}
+                className="mt-1"
                 disabled={rotationLoading || availableRotationYears.length === 0}
-              >
-                {availableRotationYears.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            </div>
 
             <div className="flex items-end gap-2">
               <button

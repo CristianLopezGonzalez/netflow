@@ -4,6 +4,8 @@ import type { FormEvent } from "react";
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
 import { WeekSelector } from "../components/common/WeekSelector";
+import CustomSelect from "../components/common/CustomSelect";
+import CustomTimePicker from "../components/common/CustomTimePicker";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import type { DiaSemana } from "../types";
@@ -291,72 +293,58 @@ export const AssignmentsPage = () => {
 
         <form className="space-y-4 glass-panel p-4" onSubmit={handleCreateAssignments}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <label className="block text-sm text-[var(--primary-300)]">
+            <div className="block text-sm text-[var(--primary-300)]">
               Trabajador
-              <select
+              <CustomSelect
                 value={selectedUserId}
-                onChange={(event) => setSelectedUserId(event.target.value)}
-                className="glass-input mt-2 w-full rounded-xl px-4 text-base font-medium"
-                required
-              >
-                <option value="">Selecciona usuario</option>
-                {availableUsers.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.nombre} ({entry.email})
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={(val) => setSelectedUserId(String(val))}
+                options={[
+                  { value: "", label: "Selecciona usuario" },
+                  ...availableUsers.map(entry => ({ value: entry.id, label: `${entry.nombre} (${entry.email})` }))
+                ]}
+                className="mt-2"
+              />
+            </div>
 
-            <label className="block text-sm text-[var(--primary-300)]">
+            <div className="block text-sm text-[var(--primary-300)]">
               Modo
-              <select
+              <CustomSelect
                 value={mode}
-                onChange={(event) => setMode(event.target.value as "dia" | "semana")}
-                className="glass-input mt-2 w-full rounded-xl px-4 text-base font-medium"
-              >
-                <option value="dia">Dia</option>
-                <option value="semana">Semana</option>
-              </select>
-            </label>
+                onChange={(val) => setMode(val as "dia" | "semana")}
+                options={[
+                  { value: "dia", label: "Dia" },
+                  { value: "semana", label: "Semana" },
+                ]}
+                className="mt-2"
+              />
+            </div>
 
-            <label className="block text-sm text-[var(--primary-300)]">
+            <div className="block text-sm text-[var(--primary-300)]">
               Hora inicio
-              <input
-                type="time"
+              <CustomTimePicker
                 value={startHour}
-                onChange={(event) => setStartHour(event.target.value)}
-                className="glass-input mt-2 w-full rounded-xl px-4 text-base font-medium"
-                required
+                onChange={setStartHour}
               />
-            </label>
+            </div>
 
-            <label className="block text-sm text-[var(--primary-300)]">
+            <div className="block text-sm text-[var(--primary-300)]">
               Hora fin
-              <input
-                type="time"
+              <CustomTimePicker
                 value={endHour}
-                onChange={(event) => setEndHour(event.target.value)}
-                className="glass-input mt-2 w-full rounded-xl px-4 text-base font-medium"
-                required
+                onChange={setEndHour}
               />
-            </label>
+            </div>
 
             {mode === "dia" ? (
-              <label className="block text-sm text-[var(--primary-300)]">
+              <div className="block text-sm text-[var(--primary-300)]">
                 Dia
-                <select
+                <CustomSelect
                   value={selectedDay}
-                  onChange={(event) => setSelectedDay(event.target.value as DiaSemana)}
-                  className="glass-input mt-2 w-full rounded-xl px-4 text-base font-medium"
-                >
-                  {dayOrder.map((day) => (
-                    <option key={day} value={day}>
-                      {day}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  onChange={(val) => setSelectedDay(val as DiaSemana)}
+                  options={dayOrder.map(day => ({ value: day, label: day }))}
+                  className="mt-2"
+                />
+              </div>
             ) : (
               <div className="xl:col-span-1">
                 <p className="text-sm text-[var(--primary-300)]">Dias de semana</p>
@@ -430,22 +418,18 @@ export const AssignmentsPage = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                <select
+                <CustomSelect
                   value={assignmentDrafts[assignment.id] ?? assignment.usuario}
-                  onChange={(event) => {
-                    const nextUserId = event.target.value;
+                  onChange={(val) => {
+                    const nextUserId = String(val);
                     setAssignmentDrafts((current) => ({ ...current, [assignment.id]: nextUserId }));
                     void handleUpdateAssignmentUser(assignment.id, nextUserId, assignment.usuario);
                   }}
+                  options={availableUsers.map(entry => ({ value: entry.id, label: entry.nombre }))}
                   disabled={inlineUpdatingId === assignment.id || deletingAssignmentId === assignment.id}
-                  className="glass-input flex-1 h-9 rounded-lg px-2 text-xs"
-                >
-                  {availableUsers.map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.nombre}
-                    </option>
-                  ))}
-                </select>
+                  className="flex-1"
+                  hSize="h-9"
+                />
                 <button
                   type="button"
                   disabled={inlineUpdatingId === assignment.id || deletingAssignmentId === assignment.id}
