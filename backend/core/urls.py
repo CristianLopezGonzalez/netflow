@@ -27,7 +27,8 @@ from .views import (
     SemanaListCreateView,
     SemanaPublicarView,
     SemanaRotacionView,
-    UsuariosActivosView,
+    UsuarioDetailView,
+    UsuariosView,
 )
 
 urlpatterns = [
@@ -35,7 +36,8 @@ urlpatterns = [
     path("auth/login", TokenObtainPairView.as_view()),
     path("auth/refresh", TokenRefreshView.as_view()),
     path("auth/me", MeView.as_view()),
-    path("usuarios", UsuariosActivosView.as_view()),
+    path("usuarios", UsuariosView.as_view()),
+    path("usuarios/<uuid:usuario_id>", UsuarioDetailView.as_view()),
     path("semanas", SemanaListCreateView.as_view()),
     path("semanas/rotacion", SemanaRotacionView.as_view()),
     path("semanas/generar-mes", SemanaGenerarMesView.as_view()),

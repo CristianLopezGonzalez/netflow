@@ -28,6 +28,54 @@ class UsuarioSerializer(serializers.ModelSerializer):
         fields = ("id", "nombre", "email", "rol", "activo")
 
 
+class UsuarioAdminSerializer(UsuarioSerializer):
+    password = serializers.CharField(write_only=True, min_length=8, required=False, trim_whitespace=False)
+
+    class Meta(UsuarioSerializer.Meta):
+        fields = UsuarioSerializer.Meta.fields + ("password",)
+
+    def validate_email(self, value):
+        normalized_email = value.strip().lower()
+        query = Usuario.objects.filter(email__iexact=normalized_email)
+        if self.instance:
+            query = query.exclude(id=self.instance.id)
+        if query.exists():
+            raise serializers.ValidationError("Ya existe un usuario con este email.")
+        return normalized_email
+
+    def validate(self, attrs):
+        if not self.instance and not attrs.get("password"):
+            raise serializers.ValidationError({"password": "Este campo es obligatorio."})
+        return attrs
+
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+        email = validated_data["email"]
+
+        user = Usuario(**validated_data)
+        user.email = email
+        user.username = email
+        user.set_password(password)
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+        email = validated_data.get("email")
+
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+
+        if email is not None:
+            instance.username = email
+
+        if password:
+            instance.set_password(password)
+
+        instance.save()
+        return instance
+
+
 class RegistroSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
 
@@ -36,9 +84,15 @@ class RegistroSerializer(serializers.ModelSerializer):
         fields = ("id", "nombre", "email", "password")
         read_only_fields = ("id",)
 
+    def validate_email(self, value):
+        normalized_email = value.strip().lower()
+        if Usuario.objects.filter(email__iexact=normalized_email).exists():
+            raise serializers.ValidationError("Ya existe un usuario con este email.")
+        return normalized_email
+
     def create(self, validated_data):
         password = validated_data.pop("password")
-        email = validated_data["email"].lower()
+        email = validated_data["email"]
         user = Usuario(**validated_data)
         user.email = email
         user.username = email

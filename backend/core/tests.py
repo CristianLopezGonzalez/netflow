@@ -161,6 +161,149 @@ class CoreApiRegressionTests(APITestCase):
 		self.assertIn("Ya existe una semana registrada", str(response.data))
 
 
+class UsuariosCrudApiTests(APITestCase):
+	host_headers = {"HTTP_HOST": "localhost"}
+
+	def setUp(self):
+		user_model = get_user_model()
+
+		self.admin = user_model.objects.create_user(
+			username="admin.users@test.local",
+			email="admin.users@test.local",
+			password="trebujena123",
+			nombre="Admin Users",
+			rol="admin",
+			activo=True,
+		)
+		self.supervisor = user_model.objects.create_user(
+			username="supervisor.users@test.local",
+			email="supervisor.users@test.local",
+			password="trebujena123",
+			nombre="Supervisor Users",
+			rol="supervisor",
+			activo=True,
+		)
+		self.employee = user_model.objects.create_user(
+			username="empleado.users@test.local",
+			email="empleado.users@test.local",
+			password="trebujena123",
+			nombre="Empleado Users",
+			rol="empleado",
+			activo=True,
+		)
+		self.target_user = user_model.objects.create_user(
+			username="target.user@test.local",
+			email="target.user@test.local",
+			password="trebujena123",
+			nombre="Target User",
+			rol="empleado",
+			activo=True,
+		)
+
+	def test_admin_can_list_users(self):
+		self.client.force_authenticate(user=self.admin)
+		response = self.client.get("/api/usuarios", **self.host_headers)
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		emails = {item["email"] for item in response.data}
+		self.assertIn(self.admin.email, emails)
+		self.assertIn(self.target_user.email, emails)
+
+	def test_employee_cannot_access_users_crud(self):
+		self.client.force_authenticate(user=self.employee)
+		response = self.client.get("/api/usuarios", **self.host_headers)
+
+		self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+	def test_supervisor_can_create_user_with_role_and_status(self):
+		self.client.force_authenticate(user=self.supervisor)
+		response = self.client.post(
+			"/api/usuarios",
+			{
+				"nombre": "Nuevo Empleado",
+				"email": "nuevo.empleado@test.local",
+				"password": "claveSegura123",
+				"rol": "empleado",
+				"activo": False,
+			},
+			format="json",
+			**self.host_headers,
+		)
+
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+		user_model = get_user_model()
+		created_user = user_model.objects.get(email="nuevo.empleado@test.local")
+		self.assertEqual(created_user.username, "nuevo.empleado@test.local")
+		self.assertEqual(created_user.rol, "empleado")
+		self.assertFalse(created_user.activo)
+		self.assertFalse(created_user.is_active)
+		self.assertTrue(created_user.check_password("claveSegura123"))
+
+	def test_create_user_rejects_duplicate_email_case_insensitive(self):
+		self.client.force_authenticate(user=self.admin)
+		response = self.client.post(
+			"/api/usuarios",
+			{
+				"nombre": "Duplicado",
+				"email": "EMPLEADO.USERS@TEST.LOCAL",
+				"password": "claveSegura123",
+				"rol": "empleado",
+				"activo": True,
+			},
+			format="json",
+			**self.host_headers,
+		)
+
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn("email", response.data)
+
+	def test_admin_can_get_patch_and_soft_delete_user(self):
+		self.client.force_authenticate(user=self.admin)
+
+		detail_response = self.client.get(
+			f"/api/usuarios/{self.target_user.id}",
+			**self.host_headers,
+		)
+		self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+		self.assertEqual(detail_response.data["email"], self.target_user.email)
+
+		patch_response = self.client.patch(
+			f"/api/usuarios/{self.target_user.id}",
+			{
+				"nombre": "Target Editado",
+				"email": "TARGET.EDITADO@TEST.LOCAL",
+				"rol": "supervisor",
+				"activo": True,
+				"password": "nuevaClave123",
+			},
+			format="json",
+			**self.host_headers,
+		)
+
+		self.assertEqual(patch_response.status_code, status.HTTP_200_OK, patch_response.data)
+		self.target_user.refresh_from_db()
+		self.assertEqual(self.target_user.nombre, "Target Editado")
+		self.assertEqual(self.target_user.email, "target.editado@test.local")
+		self.assertEqual(self.target_user.username, "target.editado@test.local")
+		self.assertEqual(self.target_user.rol, "supervisor")
+		self.assertTrue(self.target_user.check_password("nuevaClave123"))
+
+		delete_response = self.client.delete(
+			f"/api/usuarios/{self.target_user.id}",
+			**self.host_headers,
+		)
+		self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
+		self.target_user.refresh_from_db()
+		self.assertFalse(self.target_user.activo)
+		self.assertFalse(self.target_user.is_active)
+
+	def test_admin_cannot_delete_own_user(self):
+		self.client.force_authenticate(user=self.admin)
+		response = self.client.delete(f"/api/usuarios/{self.admin.id}", **self.host_headers)
+
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
 class IntercambiosBolsaWorkflowTests(APITestCase):
 	host_headers = {"HTTP_HOST": "localhost"}
 

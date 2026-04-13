@@ -25,6 +25,7 @@ from .models import (
 	RolSolicitanteCompensacion,
 	SolicitudIntercambio,
 	TipoEventoAuditoria,
+	Usuario,
 )
 from .planning import CONFLICT_REPLACE, generate_month_schedule, generate_year_schedule
 from .serializers import (
@@ -39,6 +40,7 @@ from .serializers import (
 	RegistroSerializer,
 	SolicitudIntercambioCreateSerializer,
 	SolicitudIntercambioSerializer,
+	UsuarioAdminSerializer,
 	UsuarioSerializer,
 )
 from .services import aceptar_intercambio, registrar_auditoria
@@ -126,14 +128,55 @@ class MeView(APIView):
 		return Response(UsuarioSerializer(request.user).data)
 
 
-class UsuariosActivosView(APIView):
+class UsuariosView(APIView):
 	def get(self, request):
-		usuarios = (
-			request.user.__class__.objects.filter(activo=True)
-			.exclude(id=request.user.id)
-			.order_by("nombre")
-		)
+		_require_roles(request.user, {"admin", "supervisor"})
+		usuarios = Usuario.objects.all().order_by("nombre", "email")
 		return Response(UsuarioSerializer(usuarios, many=True).data)
+
+	def post(self, request):
+		_require_roles(request.user, {"admin", "supervisor"})
+		serializer = UsuarioAdminSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		usuario = serializer.save()
+		return Response(UsuarioSerializer(usuario).data, status=status.HTTP_201_CREATED)
+
+
+class UsuarioDetailView(APIView):
+	def get(self, request, usuario_id):
+		_require_roles(request.user, {"admin", "supervisor"})
+		usuario = Usuario.objects.filter(id=usuario_id).first()
+		if not usuario:
+			return Response({"detail": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+		return Response(UsuarioSerializer(usuario).data)
+
+	def patch(self, request, usuario_id):
+		_require_roles(request.user, {"admin", "supervisor"})
+		usuario = Usuario.objects.filter(id=usuario_id).first()
+		if not usuario:
+			return Response({"detail": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+		serializer = UsuarioAdminSerializer(usuario, data=request.data, partial=True)
+		serializer.is_valid(raise_exception=True)
+		usuario = serializer.save()
+		return Response(UsuarioSerializer(usuario).data)
+
+	def delete(self, request, usuario_id):
+		_require_roles(request.user, {"admin", "supervisor"})
+		usuario = Usuario.objects.filter(id=usuario_id).first()
+		if not usuario:
+			return Response({"detail": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+		if usuario.id == request.user.id:
+			return Response(
+				{"detail": "No puedes desactivar tu propio usuario."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		usuario.activo = False
+		usuario.is_active = False
+		usuario.save(update_fields=["activo", "is_active"])
+		return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SemanaListCreateView(APIView):
