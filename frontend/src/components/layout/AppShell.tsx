@@ -26,7 +26,13 @@ export const AppShell = () => {
 
   const links =
     user?.rol === "admin" || user?.rol === "supervisor"
-      ? [{ to: "/generacion", label: "Generacion" }, ...commonLinks]
+      ? [
+          {
+            to: "/admin",
+            label: user?.rol === "supervisor" ? "Supervisión" : "Admin",
+          },
+          ...commonLinks,
+        ]
       : commonLinks;
 
   const pendientesRecibidas = intercambios.recibidas.filter((item) => item.estado === "pendiente").length;

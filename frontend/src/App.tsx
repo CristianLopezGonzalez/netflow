@@ -9,7 +9,7 @@ import { CalendarPage } from "./pages/CalendarPage";
 import { ExchangesPage } from "./pages/ExchangesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PlanningCalendarPage } from "./pages/PlanningCalendarPage";
-import { PlanningGenerationPage } from "./pages/PlanningGenerationPage";
+import { AdminPage } from "./pages/AdminPage";
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -28,7 +28,8 @@ function App() {
         >
           <Route index element={<Navigate to="/vistas" replace />} />
           <Route path="/vistas" element={<PlanningCalendarPage />} />
-          <Route path="/generacion" element={<PlanningGenerationPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/generacion" element={<Navigate to="/admin" replace />} />
           <Route path="/semanas" element={<Navigate to="/vistas" replace />} />
           <Route path="/asignaciones" element={<Navigate to="/vistas" replace />} />
           <Route path="/mis-tardes" element={<Navigate to="/vistas" replace />} />

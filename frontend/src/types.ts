@@ -15,10 +15,30 @@ export interface Usuario {
   activo: boolean;
 }
 
+export interface UsuarioCreatePayload {
+  nombre: string;
+  email: string;
+  password: string;
+  rol: RolUsuario;
+  activo: boolean;
+}
+
+export interface UsuarioUpdatePayload {
+  nombre?: string;
+  email?: string;
+  password?: string;
+  rol?: RolUsuario;
+  activo?: boolean;
+}
+
 export interface Semana {
   id: string;
   anio: number;
   numero_semana: number;
+  fecha_inicio_semana: string;
+  fecha_fin_semana: string;
+  estado: EstadoSemana;
+}
   fecha_inicio_semana: string;
   fecha_fin_semana: string;
   estado: EstadoSemana;

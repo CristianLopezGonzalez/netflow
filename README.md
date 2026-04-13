@@ -93,11 +93,9 @@ Frontend local: `http://localhost:5173`
 
 - Root directory: `backend`
 - Build command: `pip install -r requirements.txt`
-- Start command:
-
-```bash
-python manage.py migrate && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
-```
+- Activate VENV: `.\venv\Scripts\Activate.ps1`
+- Execute migrations: `python manage.py migrate`
+- Start command: `python manage.py runserver`
 
 Variables de entorno minimas en Render:
 
