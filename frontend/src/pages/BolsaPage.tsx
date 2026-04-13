@@ -816,7 +816,7 @@ export const BolsaPage = () => {
             )}
           </div>
 
-          <div className="block text-sm text-slate-700">
+          <div className="block text-sm text-[var(--primary-200)]">
             Tipo
             <CustomSelect
               value={form.tipo}
@@ -838,18 +838,18 @@ export const BolsaPage = () => {
 
           {form.tipo === "dia" ? (
             <div className={panelCardClass}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-200)]">
                 {form.direccion === "cobrar"
                   ? "Tus turnos (elige los turnos a cobrar)"
                   : "Turnos del acreedor (elige los turnos a devolver)"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-[var(--primary-400)]">
                 La compensacion por dia permite seleccionar 1..N turnos en una sola solicitud.
               </p>
 
               <div className="mt-2 space-y-2">
                 {form.direccion === "devolver" && form.usuario_id && loadingCompanionAssignments && (
-                  <p className="text-xs text-slate-500">Cargando turnos del acreedor...</p>
+                  <p className="text-xs text-[var(--primary-400)]">Cargando turnos del acreedor...</p>
                 )}
                 {form.direccion === "devolver" && companionAssignmentsError && (
                   <p className="text-xs font-semibold text-rose-700">
@@ -857,7 +857,7 @@ export const BolsaPage = () => {
                   </p>
                 )}
                 {sourceAssignmentsDia.length === 0 && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[var(--primary-400)]">
                     {form.direccion === "cobrar"
                       ? "No tienes turnos en la semana activa para cobrar deuda."
                       : "El acreedor no tiene turnos en la semana activa."}
@@ -888,37 +888,37 @@ export const BolsaPage = () => {
               </div>
 
               {selectedDayAssignments.length > 0 && (
-                <p className="mt-2 text-xs text-slate-600">
+                <p className="mt-2 text-xs text-[var(--primary-300)]">
                   Seleccionados ({selectedDayAssignments.length}): {selectedDayAssignments.map((assignment) => assignment.dia).join(", ")}
                 </p>
               )}
             </div>
           ) : (
             <div className={panelCardClass}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-200)]">
                 Resumen semanal
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-[var(--primary-400)]">
                 En modo semana no eliges un dia manualmente. Se usa una referencia automatica valida.
               </p>
 
               <div className="mt-2 grid gap-2 sm:grid-cols-3">
                 <div className="glass-soft px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Turnos en semana</p>
-                  <p className="text-base font-bold text-slate-900">{diasOperacionSemana}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-[var(--primary-400)]">Turnos en semana</p>
+                  <p className="text-base font-bold text-white">{diasOperacionSemana}</p>
                 </div>
                 <div className="glass-soft px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Deuda requerida</p>
-                  <p className="text-base font-bold text-slate-900">{diasOperacionSemana}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-[var(--primary-400)]">Deuda requerida</p>
+                  <p className="text-base font-bold text-white">{diasOperacionSemana}</p>
                 </div>
                 <div className="glass-soft px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Deuda disponible</p>
-                  <p className="text-base font-bold text-slate-900">{deudaDisponible ?? 0}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-[var(--primary-400)]">Deuda disponible</p>
+                  <p className="text-base font-bold text-white">{deudaDisponible ?? 0}</p>
                 </div>
               </div>
 
               {form.direccion === "devolver" && form.usuario_id && loadingCompanionAssignments && (
-                <p className="mt-2 text-xs text-slate-500">Cargando turnos del acreedor...</p>
+                <p className="mt-2 text-xs text-[var(--primary-400)]">Cargando turnos del acreedor...</p>
               )}
               {form.direccion === "devolver" && companionAssignmentsError && (
                 <p className="mt-2 text-xs font-semibold text-rose-700">
@@ -927,7 +927,7 @@ export const BolsaPage = () => {
               )}
 
               {weeklyReferenceAssignment ? (
-                <p className="mt-2 text-xs text-slate-600">
+                <p className="mt-2 text-xs text-[var(--primary-300)]">
                   Referencia automatica: {formatAssignment(weeklyReferenceAssignment)}
                 </p>
               ) : (
@@ -936,7 +936,7 @@ export const BolsaPage = () => {
                 </p>
               )}
 
-              <p className="mt-2 text-xs text-slate-600">
+              <p className="mt-2 text-xs text-[var(--primary-300)]">
                 {form.direccion === "cobrar"
                   ? "Al aceptar, el deudor cubrira todos tus turnos de la semana activa."
                   : "Al aceptar, cubriras todos los turnos del acreedor en la semana activa."}
@@ -944,7 +944,7 @@ export const BolsaPage = () => {
             </div>
           )}
 
-          <label className="block text-sm text-slate-700">
+          <label className="block text-sm text-[var(--primary-200)]">
             Motivo
             <textarea
               value={form.motivo}
@@ -976,12 +976,12 @@ export const BolsaPage = () => {
         </form>
         ) : (
           <div className={panelCardClass}>
-            <p className="text-sm font-semibold text-slate-800">
+            <p className="text-sm font-semibold text-[var(--primary-100)]">
               {form.direccion === "cobrar"
                 ? "No hay operaciones de cobro disponibles ahora mismo."
                 : "No hay operaciones de devolucion disponibles ahora mismo."}
             </p>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-[var(--primary-300)]">
               {form.direccion === "cobrar"
                 ? "Cuando un companero te deba dias, podras crear solicitudes de cobro desde aqui."
                 : "Cuando tengas deuda pendiente, podras activar Devolver deuda y crear solicitudes desde esta misma pantalla."}
@@ -1105,7 +1105,7 @@ export const BolsaPage = () => {
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[var(--primary-400)]">
               Mostrando {filteredMovements.length} de {movements.length} movimiento(s).
             </p>
             {hasActiveMovementFilters && (

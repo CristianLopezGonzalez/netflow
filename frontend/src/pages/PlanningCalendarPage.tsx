@@ -604,7 +604,7 @@ export const PlanningCalendarPage = () => {
 
           <div className="grid w-full gap-2 md:w-auto md:grid-cols-[minmax(0,140px)_auto]">
             <div className="block text-sm">
-              <span className="text-[10px] font-black uppercase text-[var(--primary-500)]">Anio</span>
+              <span className="text-[10px] font-black uppercase text-[var(--primary-400)]">Anio</span>
               <CustomSelect
                 value={activeOverviewYear}
                 onChange={(val) => setSelectedOverviewYear(Number.parseInt(String(val), 10))}
@@ -658,7 +658,7 @@ export const PlanningCalendarPage = () => {
 
         {selectedWeekEmployeeLegend.length > 0 && (
           <div className="glass-panel p-3">
-            <p className="text-[10px] font-black uppercase tracking-wide text-[var(--primary-500)] mb-2">Leyenda</p>
+            <p className="text-[10px] font-black uppercase tracking-wide text-[var(--primary-400)] mb-2">Leyenda</p>
             <div className="flex flex-wrap gap-2">
               {selectedWeekEmployeeLegend.map((employee) => (
                 <span
@@ -672,11 +672,11 @@ export const PlanningCalendarPage = () => {
           </div>
         )}
 
-        {rotationLoading && <p className="text-sm text-[var(--primary-600)] italic">Cargando rotacion...</p>}
+        {rotationLoading && <p className="text-sm text-[var(--primary-400)] italic">Cargando rotacion...</p>}
         {rotationError && <NoticeBanner kind="error" message={rotationError} />}
 
         {!rotationLoading && availableRotationYears.length === 0 && (
-          <p className="text-sm text-[var(--primary-600)] italic">No hay datos de rotacion.</p>
+          <p className="text-sm text-[var(--primary-400)] italic">No hay datos de rotacion.</p>
         )}
 
         {!rotationLoading && availableRotationYears.length > 0 && (
@@ -690,7 +690,7 @@ export const PlanningCalendarPage = () => {
                   className={`rounded-lg border px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider ${
                     headerIndex >= 5
                       ? "border-red-500/30 bg-red-500/5 text-red-300"
-                      : "border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-500)]"
+                      : "border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-400)]"
                   }`}
                 >
                   {label}
@@ -727,7 +727,7 @@ export const PlanningCalendarPage = () => {
                       className={`min-h-24 rounded-xl border p-2 ${
                         isWeekend
                           ? "border-red-500/30 bg-red-500/5 text-red-100"
-                          : "border-[var(--color-surface-border)] bg-[var(--color-background)]/60 text-[var(--primary-500)]"
+                          : "border-[var(--color-surface-border)] bg-[var(--color-background)]/60 text-[var(--primary-400)]"
                       }`}
                     >
                       <div className="flex justify-between">

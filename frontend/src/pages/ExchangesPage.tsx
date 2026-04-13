@@ -909,20 +909,20 @@ export const ExchangesPage = () => {
         <form className="mt-4 space-y-3.5" onSubmit={handleSubmit}>
           <div className="grid gap-2 sm:grid-cols-3">
             <div className={summaryCardClass}>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Tus dias seleccionados</p>
+              <p className="text-xs uppercase tracking-wide text-[var(--primary-400)]">Tus dias seleccionados</p>
               <p className="text-lg font-bold text-[var(--primary-50)]">{selectedOriginCount}</p>
             </div>
             <div className={summaryCardClass}>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Dias companero</p>
+              <p className="text-xs uppercase tracking-wide text-[var(--primary-400)]">Dias companero</p>
               <p className="text-lg font-bold text-[var(--primary-50)]">{isBolsaMode ? "No aplica" : selectedDestinationCount}</p>
             </div>
             <div className={summaryCardClass}>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Modo actual</p>
+              <p className="text-xs uppercase tracking-wide text-[var(--primary-400)]">Modo actual</p>
               <p className="text-lg font-bold text-[var(--primary-50)]">{form.modo_compensacion}</p>
             </div>
           </div>
 
-          <div className="block text-sm text-slate-700">
+          <div className="block text-sm text-[var(--primary-200)]">
             Companero receptor
             <CustomSelect
               value={form.receptor_id}
@@ -959,7 +959,7 @@ export const ExchangesPage = () => {
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-            <div className="block text-sm text-slate-700">
+            <div className="block text-sm text-[var(--primary-200)]">
               Tipo
               <CustomSelect
                 value={form.tipo}
@@ -979,7 +979,7 @@ export const ExchangesPage = () => {
               />
             </div>
 
-            <div className="block text-sm text-slate-700">
+            <div className="block text-sm text-[var(--primary-200)]">
               Modo de compensacion
               <CustomSelect
                 value={form.modo_compensacion}
@@ -1002,19 +1002,19 @@ export const ExchangesPage = () => {
 
           <div className="grid gap-3 lg:grid-cols-2">
             <div className={panelCardClass}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-200)]">
                 {form.tipo === "dia"
                   ? "Tus turnos (selecciona los dias que quieras)"
                   : "Tu semana (selecciona referencia)"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-[var(--primary-400)]">
                 {form.tipo === "dia"
                   ? "Los dias pueden ser no consecutivos."
                   : "Se intercambia la semana completa al aceptar."}
               </p>
               <div className="mt-2 space-y-2">
                 {filteredMyAssignments.length === 0 && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[var(--primary-400)]">
                     No tienes turnos disponibles en esta semana para intercambiar.
                   </p>
                 )}
@@ -1043,20 +1043,20 @@ export const ExchangesPage = () => {
                     })}
               </div>
               {form.tipo === "dia" && selectedOriginIds.length > 0 && (
-                <p className="mt-2 text-xs text-slate-600">
+                <p className="mt-2 text-xs text-[var(--primary-300)]">
                   Seleccionados ({selectedOriginIds.length}): {selectedOriginAssignments.map((item) => item.dia).join(", ")}
                 </p>
               )}
             </div>
 
             <div className={panelCardClass}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-200)]">
                 {selectedCompanion
                   ? `Turnos de ${selectedCompanion.nombre}`
                   : "Turnos del companero seleccionado"}
               </p>
 
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-[var(--primary-400)]">
                 {form.modo_compensacion === "inmediata"
                   ? form.tipo === "dia"
                     ? "Compensacion inmediata por dia: selecciona la misma cantidad de turnos tuyos y del companero."
@@ -1065,7 +1065,7 @@ export const ExchangesPage = () => {
               </p>
 
               {isBolsaMode ? (
-                <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:border-blue-500/60 dark:bg-blue-900/35 dark:text-blue-100">
+                <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:border-blue-500/60 dark:bg-blue-900/35 dark:text-blue-100">
                   En Bolsa no se permite elegir destinos. Tu companero recibe tu solicitud y, si acepta, quedara reflejada la deuda en la bolsa.
                 </div>
               ) : (
@@ -1083,31 +1083,31 @@ export const ExchangesPage = () => {
                         }
                       />
                       {loadingCompanionWeeks && (
-                        <p className="mt-1 text-xs text-slate-500">Cargando semanas del companero...</p>
+                        <p className="mt-1 text-xs text-[var(--primary-400)]">Cargando semanas del companero...</p>
                       )}
                       {selectedCompanionWeek ? (
-                        <p className="mt-1 text-xs text-slate-500">{formatWeek(selectedCompanionWeek)}</p>
+                        <p className="mt-1 text-xs text-[var(--primary-400)]">{formatWeek(selectedCompanionWeek)}</p>
                       ) : (
-                        <p className="mt-1 text-xs text-slate-500">Este companero no tiene semanas con turnos.</p>
+                        <p className="mt-1 text-xs text-[var(--primary-400)]">Este companero no tiene semanas con turnos.</p>
                       )}
                     </div>
                   )}
 
                   {form.receptor_id && form.tipo === "semana" && (
-                    <div className="glass-soft mt-2 px-3 py-2 text-xs text-slate-600">
+                    <div className="glass-soft mt-2 px-3 py-2 text-xs text-[var(--primary-300)]">
                       Semana propia: {selectedWeek ? formatWeek(selectedWeek) : "sin semana activa"}. Semana companero: {selectedCompanionWeek ? formatWeek(selectedCompanionWeek) : "sin semana seleccionada"}. En modo semanal se preseleccionan todos los dias de ambas semanas.
                     </div>
                   )}
 
                   <div className="mt-2 space-y-2">
                     {!form.receptor_id && (
-                      <p className="text-xs text-slate-500">Selecciona un companero para ver sus turnos.</p>
+                      <p className="text-xs text-[var(--primary-400)]">Selecciona un companero para ver sus turnos.</p>
                     )}
                     {form.receptor_id && loadingCompanionAssignments && (
-                      <p className="text-xs text-slate-500">Cargando turnos del companero...</p>
+                      <p className="text-xs text-[var(--primary-400)]">Cargando turnos del companero...</p>
                     )}
                     {form.receptor_id && !loadingCompanionAssignments && destinationOptions.length === 0 && companionWeekOptions.length > 0 && (
-                      <p className="text-xs text-slate-500">Este companero no tiene turnos en la semana seleccionada.</p>
+                      <p className="text-xs text-[var(--primary-400)]">Este companero no tiene turnos en la semana seleccionada.</p>
                     )}
                     {form.tipo === "semana"
                       ? weekDestinationAssignments.map((assignment) => (
@@ -1135,7 +1135,7 @@ export const ExchangesPage = () => {
                   </div>
 
                   {form.tipo === "dia" && selectedDestinationIds.length > 0 && (
-                    <p className="mt-2 text-xs text-slate-600">
+                    <p className="mt-2 text-xs text-[var(--primary-300)]">
                       Destinos seleccionados ({selectedDestinationIds.length}): {selectedDestinationAssignments.map((item) => item.dia).join(", ")}
                     </p>
                   )}
@@ -1144,7 +1144,7 @@ export const ExchangesPage = () => {
             </div>
           </div>
 
-          <label className="block text-sm text-slate-700">
+          <label className="block text-sm text-[var(--primary-200)]">
             Motivo
             <textarea
               value={form.motivo}
@@ -1192,7 +1192,7 @@ export const ExchangesPage = () => {
                   : "Sin acciones pendientes en este bloque."}
               </p>
             </div>
-            <span className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">
+            <span className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
               Por responder: {pendingReceivedCount}
             </span>
           </div>
@@ -1218,7 +1218,7 @@ export const ExchangesPage = () => {
                   : "No hay solicitudes en espera en este bloque."}
               </p>
             </div>
-            <span className="glass-badge rounded-full px-2.5 py-1 text-xs font-semibold text-slate-700">
+            <span className="glass-badge rounded-full px-2.5 py-1 text-xs font-semibold text-[var(--primary-200)]">
               En espera: {pendingSentCount}
             </span>
           </div>

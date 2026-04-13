@@ -46,7 +46,7 @@ export const AppShell = () => {
              <p className="text-sm font-black uppercase tracking-widest text-[var(--primary-200)] hidden md:block">Netflow</p>
           </div>
           
-          <p className="text-xs text-[var(--primary-500)] capitalize hidden lg:block">
+          <p className="text-xs text-[var(--primary-300)] font-medium capitalize hidden lg:block">
             {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
 
@@ -60,8 +60,8 @@ export const AppShell = () => {
                     cn(
                       "px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-colors",
                       isActive 
-                        ? "bg-white/5 text-white" 
-                        : "text-[var(--primary-500)] hover:text-[var(--primary-200)] hover:bg-white/5"
+                        ? "bg-white/10 text-white shadow-sm" 
+                        : "text-[var(--primary-300)] hover:text-white hover:bg-white/5"
                     )
                   }
                 >
@@ -76,11 +76,11 @@ export const AppShell = () => {
           {/* Header Stats Strip */}
           <div className="hidden xl:flex items-center gap-4 pr-4 border-r border-[var(--color-surface-border)]">
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] uppercase font-black text-[var(--primary-600)]">Ptes:</span>
+              <span className="text-[10px] uppercase font-black text-[var(--primary-400)]">Ptes:</span>
               <span className="text-xs font-bold text-amber-400">{pendientesRecibidas + pendientesEnviadas}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] uppercase font-black text-[var(--primary-600)]">Bolsa:</span>
+              <span className="text-[10px] uppercase font-black text-[var(--primary-400)]">Bolsa:</span>
               <span className={cn(
                 "text-xs font-bold",
                 saldoNeto > 0 ? "text-emerald-400" : saldoNeto < 0 ? "text-rose-400" : "text-white"
@@ -91,14 +91,14 @@ export const AppShell = () => {
           <div className="flex items-center gap-3 pl-3">
             <div className="text-right hidden sm:block">
               <span className="text-sm font-semibold text-white block leading-none">{user?.nombre}</span>
-              <p className="text-[10px] text-[var(--primary-500)] uppercase font-black mt-1 tracking-wider">{user?.rol}</p>
+              <p className="text-[10px] text-[var(--primary-400)] uppercase font-black mt-1 tracking-wider">{user?.rol}</p>
             </div>
-            <div className="w-8 h-8 rounded-md bg-white/5 border border-white/10 text-[var(--primary-200)] flex items-center justify-center text-sm font-black">
+            <div className="w-8 h-8 rounded-md bg-white/10 border border-white/10 text-white flex items-center justify-center text-sm font-black">
               {user?.nombre?.charAt(0).toUpperCase()}
             </div>
             <button
               onClick={logout}
-              className="p-1.5 text-[var(--primary-600)] hover:text-rose-400 transition-colors"
+              className="p-1.5 text-[var(--primary-400)] hover:text-white transition-colors"
               title="Cerrar sesión"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>

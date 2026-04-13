@@ -515,7 +515,7 @@ export const PlanningGenerationPage = () => {
                     ? "bg-[var(--primary-700)] border-[var(--primary-600)] text-white shadow-sm"
                     : isCompleted
                       ? "bg-emerald-900/20 border-emerald-900/30 text-emerald-400"
-                      : "bg-[var(--color-surface-hover)] border-[var(--color-surface-border)] text-[var(--primary-500)]"
+                      : "bg-[var(--color-surface-hover)] border-[var(--color-surface-border)] text-[var(--primary-400)]"
                 }`}
               >
                 Paso {step}
@@ -801,7 +801,7 @@ export const PlanningGenerationPage = () => {
             </button>
           </div>
 
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-[var(--primary-400)]">
             Borradores detectados en el alcance actual: {selectedScopeDraftWeekIds.length}
           </p>
           <p className="mt-1 text-xs text-slate-500">
@@ -810,7 +810,7 @@ export const PlanningGenerationPage = () => {
         </section>
         )}
 
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-[var(--primary-400)]">
           Regla activa: 1 empleado por semana laboral (lunes a viernes). En mensual el maximo es 4 empleados.
         </p>
         <p className="text-xs text-slate-500">
@@ -824,7 +824,7 @@ export const PlanningGenerationPage = () => {
         </div>
 
         {autoSummary && (
-          <div className="glass-soft p-3 text-sm text-slate-700">
+          <div className="glass-soft p-3 text-sm text-[var(--primary-200)]">
             <p className="font-semibold text-slate-900">
               Resumen: {autoSummary.semanas_objetivo} objetivo, {autoSummary.semanas_creadas} creadas,
               {" "}
@@ -854,7 +854,7 @@ export const PlanningGenerationPage = () => {
             <h3 id="publish-scope-title" className="text-lg font-bold text-slate-900">
               Confirmar publicacion
             </h3>
-            <p id="publish-scope-description" className="mt-2 text-sm text-slate-700">
+            <p id="publish-scope-description" className="mt-2 text-sm text-[var(--primary-200)]">
               Vas a publicar {selectedScopeDraftWeekIds.length} semana(s) en borrador de {scopeLabel}.
               Esta accion las dejara visibles para el equipo.
             </p>

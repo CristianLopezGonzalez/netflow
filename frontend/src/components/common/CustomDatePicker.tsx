@@ -99,7 +99,6 @@ export default function CustomDatePicker({
 
   const calendar = useMemo(() => (
     <div
-    <div
       className="absolute z-[9999] bg-gray-900/50 backdrop-blur-md border border-[var(--color-surface-border)] rounded-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 p-4"
       style={portalPos ? { 
         top: `${portalPos.top}px`, 
