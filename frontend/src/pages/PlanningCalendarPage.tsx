@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
-import { WeekSelector } from "../components/common/WeekSelector";
 import CustomSelect from "../components/common/CustomSelect";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
-import type { Asignacion, DiaSemana, SemanaRotacionResumen } from "../types";
+import type { Asignacion, DiaSemana, Semana, SemanaRotacionResumen } from "../types";
 import { asErrorMessage, dayOrder, formatWeek } from "../utils/formatters";
 
 const emptyDayGroups: Record<DiaSemana, Asignacion[]> = {
@@ -24,6 +23,16 @@ const monthTitleFormatter = new Intl.DateTimeFormat("es-ES", {
   year: "numeric",
   timeZone: "UTC",
 });
+
+const monthNameFormatter = new Intl.DateTimeFormat("es-ES", {
+  month: "long",
+  timeZone: "UTC",
+});
+
+const monthOptions = Array.from({ length: 12 }, (_, index) => ({
+  value: (index + 1).toString(),
+  label: monthNameFormatter.format(new Date(Date.UTC(2026, index, 1))),
+}));
 
 const parseIsoDate = (value: string): Date => {
   const [year, month, day] = value.split("-").map((part) => Number.parseInt(part, 10));
@@ -71,6 +80,14 @@ const getDiaSemanaFromDate = (date: Date): DiaSemana | null => {
     return "viernes";
   }
   return null;
+};
+
+const formatWeekSelectLabel = (week: Semana): string => {
+  const start = parseIsoDate(week.fecha_inicio_semana);
+  const end = parseIsoDate(week.fecha_fin_semana);
+  const month = monthNameFormatter.format(end);
+
+  return `${start.getUTCDate()} - ${end.getUTCDate()} ${month} ${end.getUTCFullYear()} (semana ${week.numero_semana})`;
 };
 
 const buildMonthCells = (year: number, monthIndex: number): Array<Date | null> => {
@@ -233,6 +250,7 @@ export const PlanningCalendarPage = () => {
   const [rotationError, setRotationError] = useState("");
   const [selectedOverviewYear, setSelectedOverviewYear] = useState(() => new Date().getFullYear());
   const [selectedOverviewMonthIndex, setSelectedOverviewMonthIndex] = useState(() => new Date().getMonth());
+  const [viewMode, setViewMode] = useState<"semana" | "mes">("semana");
 
   const loadRotationSummary = useCallback(async () => {
     setRotationLoading(true);
@@ -268,6 +286,38 @@ export const PlanningCalendarPage = () => {
     [weeks],
   );
 
+  const selectedWeekIndex = useMemo(
+    () => weeksOrderedAsc.findIndex((week) => week.id === selectedWeekId),
+    [weeksOrderedAsc, selectedWeekId],
+  );
+
+  const canGoPreviousWeek = selectedWeekIndex > 0;
+  const canGoNextWeek = selectedWeekIndex >= 0 && selectedWeekIndex < weeksOrderedAsc.length - 1;
+
+  const goToPreviousWeek = useCallback(() => {
+    if (!canGoPreviousWeek) {
+      return;
+    }
+
+    const previous = weeksOrderedAsc[selectedWeekIndex - 1];
+    if (previous) {
+      setSelectedWeekId(previous.id);
+      void reloadWeekDetail(previous.id);
+    }
+  }, [canGoPreviousWeek, reloadWeekDetail, selectedWeekIndex, weeksOrderedAsc, setSelectedWeekId]);
+
+  const goToNextWeek = useCallback(() => {
+    if (!canGoNextWeek) {
+      return;
+    }
+
+    const next = weeksOrderedAsc[selectedWeekIndex + 1];
+    if (next) {
+      setSelectedWeekId(next.id);
+      void reloadWeekDetail(next.id);
+    }
+  }, [canGoNextWeek, reloadWeekDetail, selectedWeekIndex, weeksOrderedAsc, setSelectedWeekId]);
+
   const nextWeek = useMemo(() => {
     if (!selectedWeekId) {
       return null;
@@ -280,6 +330,7 @@ export const PlanningCalendarPage = () => {
 
     return weeksOrderedAsc[currentIndex + 1];
   }, [selectedWeekId, weeksOrderedAsc]);
+
 
   const rotationByWeekId = useMemo(
     () => new Map(rotationSummary.map((item) => [item.semana_id, item])),
@@ -386,6 +437,82 @@ export const PlanningCalendarPage = () => {
     [activeOverviewYear, selectedOverviewMonthIndex],
   );
 
+  const todayIso = useMemo(() => toIsoDate(new Date()), []);
+  const currentMonthKey = useMemo(() => {
+    const today = new Date();
+    return `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}`;
+  }, []);
+
+  const monthSelectionOptions = useMemo(
+    () =>
+      availableRotationYearsAsc.flatMap((year) =>
+        monthOptions.map((month, monthIndex) => {
+          const value = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+          return {
+            value,
+            label: `${month.label} ${year}`,
+            isCurrent: value === currentMonthKey,
+          };
+        }),
+      ),
+    [availableRotationYearsAsc, currentMonthKey],
+  );
+
+  const selectedMonthKey = activeOverviewMonthKey;
+
+  const rotationByDate = useMemo(() => {
+    const byDate = new Map<string, SemanaRotacionResumen>();
+    for (const item of rotationSummary) {
+      const monday = parseIsoDate(item.fecha_inicio_semana);
+      for (let offset = 0; offset < 5; offset += 1) {
+        byDate.set(toIsoDate(addUtcDays(monday, offset)), item);
+      }
+    }
+    return byDate;
+  }, [rotationSummary]);
+
+  const todayIsoDate = useMemo(() => toIsoDate(new Date()), []);
+
+  const currentWeekId = useMemo(() => {
+    const matchByDate = weeksOrderedAsc.find((week) => {
+      const start = parseIsoDate(week.fecha_inicio_semana).getTime();
+      const end = addUtcDays(parseIsoDate(week.fecha_fin_semana), 2).getTime();
+      const today = parseIsoDate(todayIsoDate).getTime();
+      return start <= today && today <= end;
+    });
+
+    return matchByDate?.id ?? rotationByDate.get(todayIsoDate)?.semana_id ?? null;
+  }, [weeksOrderedAsc, rotationByDate, todayIsoDate]);
+
+  const visibleDaysInRange = useMemo(() => {
+    if (viewMode === "semana") {
+      return myAssignmentsThisWeek;
+    }
+
+    if (!user?.id) {
+      return 0;
+    }
+
+    return activeOverviewMonthCells.reduce((count, cell) => {
+      if (!cell) {
+        return count;
+      }
+
+      const iso = toIsoDate(cell);
+      const rotation = rotationByDate.get(iso);
+      if (!rotation) {
+        return count;
+      }
+
+      const diaSemana = getDiaSemanaFromDate(cell);
+      const dayItem = diaSemana ? rotation.dias.find((item) => item.dia === diaSemana) ?? null : null;
+      const assigned =
+        dayItem?.usuario_id === user.id ||
+        dayItem?.usuarios.some((item) => item.usuario_id === user.id);
+      return count + (assigned ? 1 : 0);
+    }, 0);
+  }, [activeOverviewMonthCells, rotationByDate, user?.id, viewMode, myAssignmentsThisWeek]);
+
   const canGoPreviousMonth = useMemo(() => {
     if (rotationLoading || availableRotationYearsAsc.length === 0) {
       return false;
@@ -448,111 +575,142 @@ export const PlanningCalendarPage = () => {
     setSelectedOverviewMonthIndex(0);
   }, [activeOverviewYear, availableRotationYearsAsc, canGoNextMonth, selectedOverviewMonthIndex]);
 
-  const rotationByDate = useMemo(() => {
-    const byDate = new Map<string, SemanaRotacionResumen>();
-    for (const item of rotationSummary) {
-      const monday = parseIsoDate(item.fecha_inicio_semana);
-      for (let offset = 0; offset < 5; offset += 1) {
-        byDate.set(toIsoDate(addUtcDays(monday, offset)), item);
-      }
-    }
-    return byDate;
-  }, [rotationSummary]);
-
-  const todayIso = useMemo(() => toIsoDate(new Date()), []);
-
   return (
     <section className="space-y-4">
       <article className="glass-card float-in space-y-3 p-5">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <h2 className="text-xl font-bold">Calendario de turnos</h2>
             <p className="mt-1 text-sm text-[var(--primary-400)]">
-              Consulta lo generado por dia y por semana, con foco en la siguiente rotacion.
+              Consulta lo generado por día, semana y mes, con foco en la siguiente rotación.
             </p>
           </div>
 
-          <div className="flex w-full max-w-lg flex-col gap-2 md:flex-row md:items-end">
-            <div className="w-full md:flex-1">
-              <WeekSelector
-                weeks={weeks}
-                selectedWeekId={selectedWeekId}
-                onChange={setSelectedWeekId}
-                label="Semana"
-              />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="inline-flex rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("semana")}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  viewMode === "semana"
+                    ? "bg-[var(--color-surface-bright)] text-white"
+                    : "text-[var(--primary-300)] hover:text-white"
+                }`}
+              >
+                Semana
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("mes")}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  viewMode === "mes"
+                    ? "bg-[var(--color-surface-bright)] text-white"
+                    : "text-[var(--primary-300)] hover:text-white"
+                }`}
+              >
+                Mes
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                void reloadWeekDetail(selectedWeekId);
-                void loadRotationSummary();
-              }}
-              className="glass-button h-10 rounded-lg px-4 text-sm font-semibold"
-            >
-              Actualizar
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={viewMode === "semana" ? goToPreviousWeek : goToPreviousMonth}
+                disabled={viewMode === "semana" ? !canGoPreviousWeek : !canGoPreviousMonth}
+                className="glass-button h-10 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
+              >
+                ←
+              </button>
+              <div className="min-w-[220px]">
+                <CustomSelect
+                  value={viewMode === "semana" ? selectedWeekId : selectedMonthKey}
+                  onChange={(value) => {
+                    if (viewMode === "semana") {
+                      setSelectedWeekId(String(value));
+                      void reloadWeekDetail(String(value));
+                      return;
+                    }
+
+                    const [year, monthString] = String(value).split("-");
+                    setSelectedOverviewYear(Number.parseInt(year, 10));
+                    setSelectedOverviewMonthIndex(Number.parseInt(monthString, 10) - 1);
+                  }}
+                  options={
+                    viewMode === "semana"
+                      ? weeksOrderedAsc.map((week) => ({
+                          value: week.id,
+                          label: formatWeekSelectLabel(week),
+                          isCurrent: week.id === currentWeekId,
+                        }))
+                      : monthSelectionOptions
+                  }
+                  placeholder={viewMode === "semana" ? "Selecciona semana" : "Selecciona mes"}
+                  className="w-full"
+                  hSize="h-12"
+                  disabled={viewMode === "mes" ? rotationLoading || monthSelectionOptions.length === 0 : weeksOrderedAsc.length === 0}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={viewMode === "semana" ? goToNextWeek : goToNextMonth}
+                disabled={viewMode === "semana" ? !canGoNextWeek : !canGoNextMonth}
+                className="glass-button h-10 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
+              >
+                →
+              </button>
+            </div>
+
+            <div className="glass-badge rounded-full px-3 py-2 text-sm font-semibold uppercase">
+              Tu visibilidad: {visibleDaysInRange} dia(s)
+            </div>
           </div>
         </div>
 
-        {selectedWeek && (
-          <div className="glass-chip px-3 py-2 text-sm font-bold inline-flex">
-            Semana activa: {formatWeek(selectedWeek)}
-          </div>
-        )}
+        {viewMode === "semana" && (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <article className="panel p-3">
+              <p className="stat-label">Semana actual</p>
+              <p className="stat-value mt-1">{selectedWeekSummary?.principal_usuario_nombre ?? "Sin principal"}</p>
+              <p className="text-[10px] uppercase font-black text-[var(--primary-500)] mt-1">
+                Dias: {selectedWeekSummary?.principal_total_dias ?? 0}
+              </p>
+            </article>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <article className="panel p-3">
-            <p className="stat-label">Semana actual</p>
-            <p className="stat-value mt-1">
-              {selectedWeekSummary?.principal_usuario_nombre ?? "Sin principal"}
-            </p>
-            <p className="text-[10px] uppercase font-black text-[var(--primary-500)] mt-1">Dias: {selectedWeekSummary?.principal_total_dias ?? 0}</p>
-          </article>
+            <article className="panel p-3">
+              <p className="stat-label">Semana siguiente</p>
+              <p className="stat-value mt-1">{nextWeekSummary?.principal_usuario_nombre ?? "Sin siguiente"}</p>
+              <p className="text-[10px] uppercase font-black text-[var(--primary-500)] mt-1">
+                {nextWeek ? `W${nextWeek.numero_semana}/${nextWeek.anio}` : "No cargada"}
+              </p>
+            </article>
 
-          <article className="panel p-3">
-            <p className="stat-label">Semana siguiente</p>
-            <p className="stat-value mt-1">
-              {nextWeekSummary?.principal_usuario_nombre ?? "Sin siguiente"}
-            </p>
-            <p className="text-[10px] uppercase font-black text-[var(--primary-500)] mt-1">
-              {nextWeek ? `W${nextWeek.numero_semana}/${nextWeek.anio}` : "No cargada"}
-            </p>
-          </article>
-
-          <article className="panel p-3 border-emerald-500/30 bg-emerald-500/5">
-            <p className="text-[10px] font-black uppercase tracking-wide text-emerald-400">Tu visibilidad</p>
-            <p className="stat-value mt-1 text-emerald-100">{myAssignmentsThisWeek} dia(s)</p>
-            <p className="text-[10px] uppercase font-black text-emerald-500/80 mt-1 leading-tight">
-              {myAssignmentsNextWeek > 0
-                ? `Proxima semana: te toca (${myAssignmentsNextWeek} d).`
-                : `Prox. semana: ${nextWeekSummary?.principal_usuario_nombre ?? "sin asignar"}.`}
-            </p>
-          </article>
-        </div>
-
-        {selectedWeekSummary && (
-          <article className="glass-panel p-3">
-            <p className="text-[10px] font-black uppercase tracking-wide text-[var(--primary-500)] mb-2">
-              Distribucion real de la semana
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {selectedWeekSummary.empleados.length === 0 && (
-                <p className="text-xs text-[var(--primary-600)] italic">Sin asignaciones registradas.</p>
+            <article className="panel p-3">
+              <p className="stat-label">Distribución real</p>
+              {selectedWeekSummary ? (
+                <div className="mt-2 space-y-2">
+                  {selectedWeekSummary.empleados.length === 0 ? (
+                    <p className="text-xs text-[var(--primary-600)] italic">Sin asignaciones registradas.</p>
+                  ) : (
+                    selectedWeekEmployeeLegend.map((employee) => (
+                      <div
+                        key={`${selectedWeekSummary.semana_id}-${employee.usuario_id}`}
+                        className="rounded-xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 py-2 text-[10px] font-bold uppercase"
+                      >
+                        {employee.usuario_nombre}: {employee.total_dias}d
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--primary-600)] italic">Selecciona una semana</p>
               )}
-              {selectedWeekEmployeeLegend.map((employee) => (
-                <span
-                  key={`${selectedWeekSummary.semana_id}-${employee.usuario_id}`}
-                  className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase transition hover:scale-105 ${employee.tone.chip}`}
-                >
-                  {employee.usuario_nombre}: {employee.total_dias}d
-                </span>
-              ))}
-            </div>
-          </article>
+            </article>
+          </div>
         )}
       </article>
 
-      <article className="glass-card float-in space-y-4 p-5">
+      {viewMode === "semana" && (
+        <article className="glass-card float-in space-y-4 p-5">
         <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">Detalle diario de la semana</h3>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
@@ -592,52 +750,10 @@ export const PlanningCalendarPage = () => {
           ))}
         </div>
       </article>
+      )}
 
+      {viewMode === "mes" && (
       <article className="glass-card float-in space-y-4 p-5">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h3 className="text-xl font-bold">Calendario de rotacion</h3>
-            <p className="text-sm text-[var(--primary-400)]">
-              Vista mensual: semana activa y asignaciones por bloque.
-            </p>
-          </div>
-
-          <div className="grid w-full gap-2 md:w-auto md:grid-cols-[minmax(0,140px)_auto]">
-            <div className="block text-sm">
-              <span className="text-[10px] font-black uppercase text-[var(--primary-400)]">Anio</span>
-              <CustomSelect
-                value={activeOverviewYear}
-                onChange={(val) => setSelectedOverviewYear(Number.parseInt(String(val), 10))}
-                options={availableRotationYears.map(year => ({ value: year, label: `${year}` }))}
-                className="mt-1"
-                disabled={rotationLoading || availableRotationYears.length === 0}
-              />
-            </div>
-
-            <div className="flex items-end gap-2">
-              <button
-                type="button"
-                onClick={goToPreviousMonth}
-                className="glass-button h-10 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
-                disabled={!canGoPreviousMonth}
-              >
-                ←
-              </button>
-              <div className="glass-panel h-10 flex items-center justify-center rounded-lg px-4 py-2 text-xs font-black uppercase tracking-wider min-w-[140px]">
-                {activeOverviewMonthTitle}
-              </div>
-              <button
-                type="button"
-                onClick={goToNextMonth}
-                className="glass-button h-10 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
-                disabled={!canGoNextMonth}
-              >
-                →
-              </button>
-            </div>
-          </div>
-        </div>
-
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
           <div className="glass-badge justify-start px-3 py-2 text-[10px]">
             <span className="text-white mr-1">ACTIVA:</span> ANILLO VISIBLE
@@ -681,8 +797,6 @@ export const PlanningCalendarPage = () => {
 
         {!rotationLoading && availableRotationYears.length > 0 && (
           <article key={activeOverviewMonthKey} className="glass-panel p-4">
-            <h4 className="mb-4 text-xs font-black uppercase tracking-[0.2em] text-[var(--primary-400)] text-center">{activeOverviewMonthTitle}</h4>
-
             <div className="grid grid-cols-7 gap-1">
               {weekdayHeader.map((label, headerIndex) => (
                 <div
@@ -838,6 +952,7 @@ export const PlanningCalendarPage = () => {
           </article>
         )}
       </article>
+      )}
     </section>
   );
 };
