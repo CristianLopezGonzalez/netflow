@@ -158,6 +158,14 @@
     background-color: color-mix(in srgb, #10b981, transparent 92%);
     @apply border-emerald-500 text-emerald-100; 
   }
+  .notice-banner--info {
+    background-color: color-mix(in srgb, #0ea5e9, transparent 92%);
+    @apply border-sky-500 text-white;
+  }
+  .notice-banner--warning {
+    background-color: color-mix(in srgb, #f59e0b, transparent 92%);
+    @apply border-amber-500 text-white;
+  }
 
   /* Clases para Stats (Las de la captura) */
   .stat-card {
