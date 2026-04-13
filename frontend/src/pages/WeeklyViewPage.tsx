@@ -7,8 +7,33 @@ import { WeekSelector } from "../components/common/WeekSelector";
 import CustomSelect from "../components/common/CustomSelect";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
-import type { Asignacion, GeneracionCalendarioResumen } from "../types";
-import { asErrorMessage, dayOrder, formatWeek } from "../utils/formatters";
+import type { Asignacion, GeneracionCalendarioResumen, Semana } from "../types";
+import { asErrorMessage, dayOrder } from "../utils/formatters";
+
+const parseIsoDate = (value: string): Date => {
+  const [year, month, day] = value.split("-").map((part) => Number.parseInt(part, 10));
+  return new Date(Date.UTC(year, month - 1, day));
+};
+
+const shortMonthFormatter = new Intl.DateTimeFormat("es-ES", {
+  month: "short",
+  timeZone: "UTC",
+});
+
+const formatWeekLabelWithoutNumber = (week: Semana): string => {
+  const start = parseIsoDate(week.fecha_inicio_semana);
+  const end = parseIsoDate(week.fecha_fin_semana);
+  const startDay = `${start.getUTCDate()}`.padStart(2, "0");
+  const endDay = `${end.getUTCDate()}`.padStart(2, "0");
+  const monthLabel = shortMonthFormatter.format(start).replace(".", "");
+
+  if (start.getUTCMonth() === end.getUTCMonth() && start.getUTCFullYear() === end.getUTCFullYear()) {
+    return `${startDay}-${endDay} ${monthLabel}`;
+  }
+
+  const endMonthLabel = monthNameFormatter.format(end).replace(".", "");
+  return `${startDay} ${monthLabel} - ${endDay} ${endMonthLabel}`;
+};
 
 const monthNameFormatter = new Intl.DateTimeFormat("es-ES", {
   month: "long",
@@ -407,7 +432,7 @@ export const WeeklyViewPage = () => {
 
       {selectedWeek && (
         <div className="glass-chip px-3 py-2 text-sm font-bold inline-flex">
-          {formatWeek(selectedWeek)}
+          {formatWeekLabelWithoutNumber(selectedWeek)}
         </div>
       )}
 
@@ -422,11 +447,11 @@ export const WeeklyViewPage = () => {
               onClick={() => setSelectedWeekId(week.id)}
               className={`h-10 rounded-lg border px-4 text-xs font-bold transition-all shadow-sm ${
                 selectedWeekId === week.id
-                  ? "bg-[var(--primary-700)] border-[var(--primary-600)] text-white shadow-lg"
+                  ? "bg-blue-500/20 border-blue-400/70 text-blue-200 shadow-lg"
                   : "bg-[var(--color-surface-hover)] border-[var(--color-surface-border)] text-[var(--primary-400)] hover:text-white"
               }`}
             >
-              W{week.numero_semana}/{week.anio}
+              {formatWeekLabelWithoutNumber(week)}
             </button>
           ))}
         </div>
@@ -440,14 +465,25 @@ export const WeeklyViewPage = () => {
               {groupedByDay[day].length === 0 && (
                 <p className="text-xs text-[var(--primary-600)] italic">Sin turnos</p>
               )}
-              {groupedByDay[day].map((item) => (
-                <div key={item.id} className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 py-2.5 shadow-sm">
-                  <p className="text-sm font-bold text-[var(--primary-100)]">{item.usuario_detalle?.nombre}</p>
-                  <p className="mono mt-0.5 text-[10px] font-medium text-[var(--primary-400)]">
-                    {item.hora_inicio.slice(0, 5)} - {item.hora_fin.slice(0, 5)}
-                  </p>
-                </div>
-              ))}
+              {groupedByDay[day].map((item) => {
+                const isMine = item.usuario === user?.id;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`rounded-xl border px-3 py-3 shadow-sm transition ${
+                      isMine
+                        ? "border-blue-500/60 bg-blue-500/15 text-blue-100"
+                        : "border-slate-700 bg-slate-800/80 text-slate-100"
+                    }`}
+                  >
+                    <p className="text-sm font-bold leading-tight">{item.usuario_detalle?.nombre}</p>
+                    <p className="mt-1 text-[10px] font-medium opacity-70">
+                      {item.hora_inicio.slice(0, 5)} - {item.hora_fin.slice(0, 5)}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </article>
         ))}

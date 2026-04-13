@@ -6,23 +6,9 @@ import CustomSelect from "../components/common/CustomSelect";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import type { Asignacion, DiaSemana, Semana, SemanaRotacionResumen } from "../types";
-import { asErrorMessage, dayOrder, formatWeek } from "../utils/formatters";
-
-const emptyDayGroups: Record<DiaSemana, Asignacion[]> = {
-  lunes: [],
-  martes: [],
-  miercoles: [],
-  jueves: [],
-  viernes: [],
-};
+import { asErrorMessage } from "../utils/formatters";
 
 const weekdayHeader = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
-
-const monthTitleFormatter = new Intl.DateTimeFormat("es-ES", {
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
 
 const monthNameFormatter = new Intl.DateTimeFormat("es-ES", {
   month: "long",
@@ -85,9 +71,17 @@ const getDiaSemanaFromDate = (date: Date): DiaSemana | null => {
 const formatWeekSelectLabel = (week: Semana): string => {
   const start = parseIsoDate(week.fecha_inicio_semana);
   const end = parseIsoDate(week.fecha_fin_semana);
-  const month = monthNameFormatter.format(end);
+  const startLabel = `${start.getUTCDate()}`.padStart(2, "0");
+  const endLabel = `${end.getUTCDate()}`.padStart(2, "0");
 
-  return `${start.getUTCDate()} - ${end.getUTCDate()} ${month} ${end.getUTCFullYear()} (semana ${week.numero_semana})`;
+  if (start.getUTCMonth() === end.getUTCMonth() && start.getUTCFullYear() === end.getUTCFullYear()) {
+    const monthLabel = monthNameFormatter.format(start);
+    return `${startLabel} - ${endLabel} ${monthLabel} ${end.getUTCFullYear()}`;
+  }
+
+  const startMonthLabel = monthNameFormatter.format(start);
+  const endMonthLabel = monthNameFormatter.format(end);
+  return `${startLabel} ${startMonthLabel} - ${endLabel} ${endMonthLabel} ${end.getUTCFullYear()}`;
 };
 
 const buildMonthCells = (year: number, monthIndex: number): Array<Date | null> => {
@@ -270,11 +264,6 @@ export const PlanningCalendarPage = () => {
     void loadRotationSummary();
   }, [loadRotationSummary, weeks]);
 
-  const selectedWeek = useMemo(
-    () => weeks.find((week) => week.id === selectedWeekId) ?? null,
-    [weeks, selectedWeekId],
-  );
-
   const weeksOrderedAsc = useMemo(
     () =>
       [...weeks].sort((left, right) => {
@@ -331,6 +320,10 @@ export const PlanningCalendarPage = () => {
     return weeksOrderedAsc[currentIndex + 1];
   }, [selectedWeekId, weeksOrderedAsc]);
 
+  const selectedWeek = useMemo(
+    () => weeks.find((week) => week.id === selectedWeekId) ?? null,
+    [weeks, selectedWeekId],
+  );
 
   const rotationByWeekId = useMemo(
     () => new Map(rotationSummary.map((item) => [item.semana_id, item])),
@@ -356,11 +349,11 @@ export const PlanningCalendarPage = () => {
     (employeeId?: string | null): EmployeeTone => {
       if (employeeId && employeeId === user?.id) {
         return {
-          chip: "border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-500/60 dark:bg-blue-900/35 dark:text-blue-100",
-          badge: "bg-blue-100 text-blue-800 dark:bg-blue-900/55 dark:text-blue-100",
-          surface: "border-blue-400 bg-blue-50/95 text-blue-900 dark:border-blue-500/65 dark:bg-blue-900/35 dark:text-blue-100",
-          text: "text-blue-700 dark:text-blue-200",
-          ring: "ring-blue-300 dark:ring-blue-500/70",
+          chip: "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/60 dark:bg-emerald-900/35 dark:text-emerald-100",
+          badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/55 dark:text-emerald-100",
+          surface: "border-emerald-300 bg-emerald-50/95 text-emerald-900 dark:border-emerald-500/65 dark:bg-emerald-900/35 dark:text-emerald-100",
+          text: "text-emerald-700 dark:text-emerald-200",
+          ring: "ring-emerald-300 dark:ring-emerald-500/70",
         };
       }
 
@@ -382,37 +375,7 @@ export const PlanningCalendarPage = () => {
     [getEmployeeTone, selectedWeekSummary],
   );
 
-  const groupedByDay = useMemo(() => {
-    const grouped: Record<DiaSemana, Asignacion[]> = {
-      ...emptyDayGroups,
-      lunes: [...emptyDayGroups.lunes],
-      martes: [...emptyDayGroups.martes],
-      miercoles: [...emptyDayGroups.miercoles],
-      jueves: [...emptyDayGroups.jueves],
-      viernes: [...emptyDayGroups.viernes],
-    };
-
-    for (const assignment of weekAssignments) {
-      grouped[assignment.dia].push(assignment);
-    }
-
-    for (const day of dayOrder) {
-      grouped[day].sort((left, right) => {
-        const nameLeft = left.usuario_detalle?.nombre ?? "";
-        const nameRight = right.usuario_detalle?.nombre ?? "";
-        return nameLeft.localeCompare(nameRight);
-      });
-    }
-
-    return grouped;
-  }, [weekAssignments]);
-
   const myAssignmentsThisWeek = weekAssignments.filter((assignment) => assignment.usuario === user?.id).length;
-
-  const myAssignmentsNextWeek =
-    !nextWeekSummary || !user?.id
-      ? 0
-      : nextWeekSummary.empleados.find((item) => item.usuario_id === user.id)?.total_dias ?? 0;
 
   const availableRotationYears = useMemo(
     () => [...new Set(rotationSummary.map((item) => item.anio))].sort((left, right) => right - left),
@@ -429,9 +392,6 @@ export const PlanningCalendarPage = () => {
     : availableRotationYears[0] ?? selectedOverviewYear;
 
   const activeOverviewMonthKey = `${activeOverviewYear}-${`${selectedOverviewMonthIndex + 1}`.padStart(2, "0")}`;
-  const activeOverviewMonthTitle = monthTitleFormatter.format(
-    new Date(Date.UTC(activeOverviewYear, selectedOverviewMonthIndex, 1)),
-  );
   const activeOverviewMonthCells = useMemo(
     () => buildMonthCells(activeOverviewYear, selectedOverviewMonthIndex),
     [activeOverviewYear, selectedOverviewMonthIndex],
@@ -666,127 +626,107 @@ export const PlanningCalendarPage = () => {
           </div>
         </div>
 
-        {viewMode === "semana" && (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <article className="panel p-3">
-              <p className="stat-label">Semana actual</p>
-              <p className="stat-value mt-1">{selectedWeekSummary?.principal_usuario_nombre ?? "Sin principal"}</p>
-              <p className="text-[10px] uppercase font-black text-[var(--primary-500)] mt-1">
-                Dias: {selectedWeekSummary?.principal_total_dias ?? 0}
-              </p>
-            </article>
-
-            <article className="panel p-3">
-              <p className="stat-label">Semana siguiente</p>
-              <p className="stat-value mt-1">{nextWeekSummary?.principal_usuario_nombre ?? "Sin siguiente"}</p>
-              <p className="text-[10px] uppercase font-black text-[var(--primary-500)] mt-1">
-                {nextWeek ? `W${nextWeek.numero_semana}/${nextWeek.anio}` : "No cargada"}
-              </p>
-            </article>
-
-            <article className="panel p-3">
-              <p className="stat-label">Distribución real</p>
-              {selectedWeekSummary ? (
-                <div className="mt-2 space-y-2">
-                  {selectedWeekSummary.empleados.length === 0 ? (
-                    <p className="text-xs text-[var(--primary-600)] italic">Sin asignaciones registradas.</p>
-                  ) : (
-                    selectedWeekEmployeeLegend.map((employee) => (
-                      <div
-                        key={`${selectedWeekSummary.semana_id}-${employee.usuario_id}`}
-                        className="rounded-xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 py-2 text-[10px] font-bold uppercase"
-                      >
-                        {employee.usuario_nombre}: {employee.total_dias}d
-                      </div>
-                    ))
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-[var(--primary-600)] italic">Selecciona una semana</p>
-              )}
-            </article>
-          </div>
-        )}
       </article>
 
       {viewMode === "semana" && (
         <article className="glass-card float-in space-y-4 p-5">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">Detalle diario de la semana</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">Detalle semanal</h3>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          {dayOrder.map((day) => (
-            <article key={day} className="panel p-3">
-              <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--primary-500)]">{day}</h4>
+          {!selectedWeek ? (
+            <p className="text-sm text-[var(--primary-400)] italic">Selecciona una semana</p>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-7 gap-1">
+                {weekdayHeader.map((label) => (
+                  <div
+                    key={`week-header-${label}`}
+                    className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]"
+                  >
+                    {label}
+                  </div>
+                ))}
+              </div>
 
-              <div className="mt-3 space-y-2">
-                {groupedByDay[day].length === 0 && (
-                  <p className="text-[10px] font-medium text-[var(--primary-600)] italic">Sin turnos</p>
-                )}
+              <div className="grid grid-cols-7 gap-1">
+                {Array.from({ length: 7 }).map((_, dayIndex) => {
+                  const cell = addUtcDays(parseIsoDate(selectedWeek.fecha_inicio_semana), dayIndex);
+                  const iso = toIsoDate(cell);
+                  const rotationItem = rotationByDate.get(iso);
+                  const isToday = iso === todayIso;
 
-                {groupedByDay[day].map((assignment) => {
-                  const isMine = assignment.usuario === user?.id;
-                  const tone = getEmployeeTone(assignment.usuario);
-                  const ownerName = assignment.usuario_detalle?.nombre ?? "Sin usuario";
+                  if (!rotationItem) {
+                    const todayRingClasses = isToday
+                      ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
+                      : "hover:scale-[1.01] hover:shadow-lg";
+
+                    return (
+                      <div
+                        key={`week-cell-${iso}`}
+                        className={`min-h-24 rounded-xl border border-slate-700 p-2 text-slate-400 transition-all ${todayRingClasses}`}
+                      >
+                        <div className="flex justify-start">
+                          <p className="text-[10px] font-black opacity-50">{cell.getUTCDate()}</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const diaSemana = getDiaSemanaFromDate(cell);
+                  const diaDetalle = diaSemana
+                    ? rotationItem.dias.find((item) => item.dia === diaSemana) ?? null
+                    : null;
+                  const ownerId = diaDetalle?.usuario_id ?? rotationItem.principal_usuario_id;
+                  const isUserDay = diaDetalle?.usuario_id === user?.id;
+                  const isMine = isUserDay;
+                  const ownerName = diaDetalle?.usuario_nombre ?? rotationItem.principal_usuario_nombre ?? "Sin asignar";
+                  const swapPartner = diaDetalle?.usuarios.find((item) => item.usuario_id !== ownerId) ?? null;
+
+                  const baseClasses = isMine
+                    ? "border-blue-500/60 bg-blue-500/15 text-blue-100"
+                    : "border-slate-700 text-slate-300";
+
+                  const todayRingClasses = isToday
+                    ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
+                    : "hover:scale-[1.01] hover:shadow-lg";
 
                   return (
                     <div
-                      key={assignment.id}
-                      className={`rounded-lg border px-3 py-2.5 transition-all shadow-sm ${tone.surface} ${
-                        isMine ? "ring-2 ring-emerald-500/40 border-emerald-500/30" : ""
-                      }`}
+                      key={`week-cell-${iso}`}
+                      className={`min-h-24 rounded-xl border p-2 text-left transition-all ${baseClasses} ${todayRingClasses}`}
                     >
-                      <p className="text-sm font-bold leading-tight">
+                      <div className="flex justify-between items-start">
+                        <p className="text-[10px] font-black opacity-60">{cell.getUTCDate()}</p>
+                      </div>
+
+                      <p className="mt-4 text-sm font-bold leading-tight truncate">
                         {ownerName}
-                        {isMine ? " (tu)" : ""}
                       </p>
-                      <p className="mono mt-1 text-[10px] font-medium opacity-70">
-                        {assignment.hora_inicio.slice(0, 5)} - {assignment.hora_fin.slice(0, 5)}
-                      </p>
+
+                      {swapPartner ? (
+                        <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-[var(--primary-200)]">
+                          <span aria-hidden>↔</span>
+                          {swapPartner.usuario_nombre}
+                        </p>
+                      ) : null}
                     </div>
                   );
                 })}
               </div>
+            </div>
+          )}
+          
+          {viewMode === "semana" && (
+            <article className="panel p-3">
+              <p className="stat-label">Semana siguiente</p>
+              <p className="stat-value mt-1">{nextWeekSummary?.principal_usuario_nombre ?? "Sin siguiente"}</p>
             </article>
-          ))}
-        </div>
-      </article>
+        )}
+
+        </article>
       )}
 
       {viewMode === "mes" && (
       <article className="glass-card float-in space-y-4 p-5">
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-          <div className="glass-badge justify-start px-3 py-2 text-[10px]">
-            <span className="text-white mr-1">ACTIVA:</span> ANILLO VISIBLE
-          </div>
-          <div className="glass-badge justify-start border-blue-500/30 bg-blue-500/5 text-blue-300 px-3 py-2 text-[10px]">
-             <span className="text-white mr-1">TU DIA:</span> TONO AZUL
-          </div>
-          <div className="glass-badge justify-start border-indigo-500/30 bg-indigo-500/5 text-indigo-300 px-3 py-2 text-[10px]">
-            <span className="text-white mr-1">MIXTO:</span> VARIOS EMPLEADOS
-          </div>
-          <div className="glass-badge justify-start border-blue-400/50 ring-1 ring-blue-400/30 px-3 py-2 text-[10px]">
-            <span className="text-white mr-1">HOY:</span> MARCO AZUL
-          </div>
-          <div className="glass-badge justify-start border-red-500/30 bg-red-500/5 text-red-300 px-3 py-2 text-[10px]">
-            <span className="text-white mr-1">FINDE:</span> BLOQUE ROJO
-          </div>
-        </div>
-
-        {selectedWeekEmployeeLegend.length > 0 && (
-          <div className="glass-panel p-3">
-            <p className="text-[10px] font-black uppercase tracking-wide text-[var(--primary-400)] mb-2">Leyenda</p>
-            <div className="flex flex-wrap gap-2">
-              {selectedWeekEmployeeLegend.map((employee) => (
-                <span
-                  key={`legend-${employee.usuario_id}`}
-                  className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${employee.tone.chip}`}
-                >
-                  {formatDisplayName(employee.usuario_nombre)}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
 
         {rotationLoading && <p className="text-sm text-[var(--primary-400)] italic">Cargando rotacion...</p>}
         {rotationError && <NoticeBanner kind="error" message={rotationError} />}
@@ -798,14 +738,10 @@ export const PlanningCalendarPage = () => {
         {!rotationLoading && availableRotationYears.length > 0 && (
           <article key={activeOverviewMonthKey} className="glass-panel p-4">
             <div className="grid grid-cols-7 gap-1">
-              {weekdayHeader.map((label, headerIndex) => (
+              {weekdayHeader.map((label) => (
                 <div
                   key={`${activeOverviewMonthKey}-${label}`}
-                  className={`rounded-lg border px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider ${
-                    headerIndex >= 5
-                      ? "border-red-500/30 bg-red-500/5 text-red-300"
-                      : "border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-400)]"
-                  }`}
+                  className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]"
                 >
                   {label}
                 </div>
@@ -814,74 +750,61 @@ export const PlanningCalendarPage = () => {
 
             <div className="mt-2 grid grid-cols-7 gap-1">
               {activeOverviewMonthCells.map((cell, index) => {
-                const isWeekendColumn = index % 7 >= 5;
 
                 if (!cell) {
                   return (
                     <div
                       key={`${activeOverviewMonthKey}-empty-${index}`}
-                      className={`min-h-24 rounded-xl border border-dashed ${
-                        isWeekendColumn
-                          ? "border-red-500/10 bg-red-500/[0.02]"
-                          : "border-[var(--color-surface-border)] bg-[var(--color-background)]/30"
-                      }`}
+                      className="min-h-24 rounded-xl border border-dashed border-[var(--color-surface-border)] bg-[var(--color-background)]/30"
                     />
                   );
                 }
 
                 const iso = toIsoDate(cell);
                 const rotationItem = rotationByDate.get(iso);
-                const isWeekend = cell.getUTCDay() === 0 || cell.getUTCDay() === 6;
                 const isToday = iso === todayIso;
 
                 if (!rotationItem) {
+                  const todayRingClasses = isToday
+                    ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
+                    : "hover:scale-[1.01] hover:shadow-lg";
+
                   return (
                     <div
                       key={`${activeOverviewMonthKey}-${iso}`}
-                      className={`min-h-24 rounded-xl border p-2 ${
-                        isWeekend
-                          ? "border-red-500/30 bg-red-500/5 text-red-100"
-                          : "border-[var(--color-surface-border)] bg-[var(--color-background)]/60 text-[var(--primary-400)]"
-                      }`}
+                      className={`min-h-24 rounded-xl border border-slate-700 p-2 text-slate-400 transition-all ${todayRingClasses}`}
                     >
-                      <div className="flex justify-between">
+                      <div className="flex justify-start">
                         <p className="text-[10px] font-black opacity-50">{cell.getUTCDate()}</p>
-                        {isToday && <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>}
                       </div>
-                      <p className="mt-1 text-[9px] font-bold uppercase opacity-30">{isWeekend ? "Finde" : "Vacio"}</p>
                     </div>
                   );
                 }
 
                 const diaSemana = getDiaSemanaFromDate(cell);
+                const isWeekend = cell.getUTCDay() === 0 || cell.getUTCDay() === 6;
                 const diaDetalle = diaSemana
                   ? rotationItem.dias.find((item) => item.dia === diaSemana) ?? null
                   : null;
                 const ownerId = diaDetalle?.usuario_id ?? rotationItem.principal_usuario_id;
-                const ownerTone = getEmployeeTone(ownerId);
-                const isMine = ownerId === user?.id;
-                const isSelected = rotationItem.semana_id === selectedWeekId;
-                const isMixedDay = (diaDetalle?.usuarios.length ?? 0) > 1;
-                const isMixedWeek = (rotationItem.empleados?.length ?? 0) > 1;
+                const isUserDay = diaDetalle?.usuario_id === user?.id;
+                const isMine = !isWeekend && isUserDay;
                 const ownerName = diaDetalle?.usuario_nombre ?? rotationItem.principal_usuario_nombre ?? "Sin asignar";
                 const ownerDisplayName = formatDisplayName(ownerName);
-                
-                const baseClasses = isMixedDay
-                  ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-100"
-                  : isMine
-                    ? "border-blue-500/40 bg-blue-500/10 text-blue-100"
-                    : ownerTone.surface;
-                
-                const weekendClasses = isWeekend
-                  ? "border-red-500/40 bg-red-500/10 text-red-100"
+                const swapPartner = diaDetalle?.usuarios.find((item) => item.usuario_id !== ownerId) ?? null;
+                const isSelectedWeek = rotationItem.semana_id === selectedWeekId;
+
+                const baseClasses = isMine
+                  ? "border-blue-500/60 bg-blue-500/15 text-blue-100"
+                  : "border-slate-700 text-slate-300";
+
+                const selectedWeekClasses = isSelectedWeek && !isToday
+                  ? "ring-2 ring-blue-500/60 border-blue-500/70 shadow-xl z-20 scale-[1.01]"
                   : "";
-                
-                const activeClasses = isSelected
-                  ? "ring-2 ring-[var(--primary-400)] shadow-xl z-20 scale-[1.02]"
+
+                const todayRingClasses = isToday
+                  ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
                   : "hover:scale-[1.01] hover:shadow-lg";
-                
-                const todayClasses = isToday ? "ring-2 ring-blue-400/60" : "";
-                const helperTextClasses = isMixedDay ? "text-indigo-300" : ownerTone.text;
 
                 return (
                   <button
@@ -891,60 +814,22 @@ export const PlanningCalendarPage = () => {
                       setSelectedWeekId(rotationItem.semana_id);
                       void reloadWeekDetail(rotationItem.semana_id);
                     }}
-                    className={`min-h-24 w-full rounded-xl border p-2 text-left transition-all ${baseClasses} ${weekendClasses} ${activeClasses} ${todayClasses}`}
+                    className={`min-h-24 w-full rounded-xl border p-2 text-left transition-all ${baseClasses} ${selectedWeekClasses} ${todayRingClasses}`}
                   >
                     <div className="flex justify-between items-start">
                       <p className="text-[10px] font-black opacity-60">{cell.getUTCDate()}</p>
-                      <p className="text-[9px] font-bold opacity-40">W{rotationItem.numero_semana}</p>
-                    </div>
-                    
-                    <p className="mt-2 text-[10px] font-black leading-tight truncate">
-                      {ownerDisplayName}
-                    </p>
-                    
-                    <div className="mt-1">
-                      {isMixedDay ? (
-                        <p className={`text-[8px] font-black uppercase tracking-tighter ${helperTextClasses}`}>MIXTO</p>
-                      ) : (
-                        <p className={`text-[8px] font-black uppercase tracking-tighter opacity-70`}>{rotationItem.principal_total_dias}D</p>
-                      )}
                     </div>
 
-                    <div className="mt-1 flex flex-wrap gap-0.5">
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${ownerTone.badge}`}>
-                        {ownerDisplayName}
-                      </span>
-                      {isMine && (
-                        <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-900/55 dark:text-blue-100">
-                          Tu dia
-                        </span>
-                      )}
-                      {isMixedDay && (
-                        <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-800 dark:bg-indigo-900/55 dark:text-indigo-100">
-                          Dia mixto
-                        </span>
-                      )}
-                      {isMixedWeek && (
-                        <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-800 dark:bg-slate-800/80 dark:text-slate-100">
-                          Semana mixta
-                        </span>
-                      )}
-                      {isToday && (
-                        <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-900/55 dark:text-blue-100">
-                          Hoy
-                        </span>
-                      )}
-                      {isWeekend && (
-                        <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-800 dark:bg-red-900/55 dark:text-red-100">
-                          Fin de semana
-                        </span>
-                      )}
-                      {isSelected && (
-                        <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-800 dark:bg-slate-800/80 dark:text-slate-100">
-                          Activa
-                        </span>
-                      )}
-                    </div>
+                    <p className="mt-4 text-sm font-bold leading-tight truncate">
+                      {ownerDisplayName}
+                    </p>
+
+                    {swapPartner ? (
+                      <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-[var(--primary-200)]">
+                        <span aria-hidden>↔</span>
+                        {swapPartner.usuario_nombre}
+                      </p>
+                    ) : null}
                   </button>
                 );
               })}
