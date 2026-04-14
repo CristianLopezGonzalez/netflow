@@ -101,7 +101,7 @@ export default function CustomSelect({
 
   const dropdown = useMemo(() => (
     <div
-      className="absolute z-[9999] bg-gray-900/50 backdrop-blur-md border border-[var(--color-surface-border)] rounded-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
+      className="absolute z-[9999] bg-[rgba(28,30,34,0.72)] backdrop-blur-sm border border-[var(--color-surface-border)] rounded-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
       style={portalPos ? { 
         top: `${portalPos.top}px`, 
         left: `${portalPos.left}px`, 

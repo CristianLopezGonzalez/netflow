@@ -175,6 +175,7 @@ export interface SolicitudIntercambio {
   modo_compensacion: ModoCompensacion;
   estado: EstadoSolicitud;
   es_compensacion: boolean;
+  rol_solicitante_compensacion?: "acreedor" | "deudor";
   dias_estimados: number;
   fecha_creacion: string;
   fecha_respuesta: string | null;

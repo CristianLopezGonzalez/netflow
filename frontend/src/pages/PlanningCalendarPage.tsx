@@ -581,7 +581,7 @@ export const PlanningCalendarPage = () => {
               >
                 ←
               </button>
-              <div className="min-w-[220px]">
+              <div className="min-w-[170px] sm:min-w-[220px]">
                 <CustomSelect
                   value={viewMode === "semana" ? selectedWeekId : selectedMonthKey}
                   onChange={(value) => {
@@ -631,12 +631,16 @@ export const PlanningCalendarPage = () => {
       {viewMode === "semana" && (
         <article className="glass-card float-in space-y-4 p-5">
           <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">Detalle semanal</h3>
+          <p className="text-xs text-[var(--primary-500)]">
+            Empleados en rotación: {selectedWeekEmployeeLegend.length}
+          </p>
 
           {!selectedWeek ? (
             <p className="text-sm text-[var(--primary-400)] italic">Selecciona una semana</p>
           ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-7 gap-1">
+            <div className="overflow-x-auto">
+              <div className="min-w-[640px] space-y-3">
+                <div className="grid grid-cols-7 gap-1">
                 {weekdayHeader.map((label) => (
                   <div
                     key={`week-header-${label}`}
@@ -645,10 +649,10 @@ export const PlanningCalendarPage = () => {
                     {label}
                   </div>
                 ))}
-              </div>
+                </div>
 
-              <div className="grid grid-cols-7 gap-1">
-                {Array.from({ length: 7 }).map((_, dayIndex) => {
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: 7 }).map((_, dayIndex) => {
                   const cell = addUtcDays(parseIsoDate(selectedWeek.fecha_inicio_semana), dayIndex);
                   const iso = toIsoDate(cell);
                   const rotationItem = rotationByDate.get(iso);
@@ -689,28 +693,29 @@ export const PlanningCalendarPage = () => {
                     ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
                     : "hover:scale-[1.01] hover:shadow-lg";
 
-                  return (
-                    <div
-                      key={`week-cell-${iso}`}
-                      className={`min-h-24 rounded-xl border p-2 text-left transition-all ${baseClasses} ${todayRingClasses}`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <p className="text-[10px] font-black opacity-60">{cell.getUTCDate()}</p>
-                      </div>
+                    return (
+                      <div
+                        key={`week-cell-${iso}`}
+                        className={`min-h-24 rounded-xl border p-2 text-left transition-all ${baseClasses} ${todayRingClasses}`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <p className="text-[10px] font-black opacity-60">{cell.getUTCDate()}</p>
+                        </div>
 
-                      <p className="mt-4 text-sm font-bold leading-tight truncate">
-                        {ownerName}
-                      </p>
-
-                      {swapPartner ? (
-                        <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-[var(--primary-200)]">
-                          <span aria-hidden>↔</span>
-                          {swapPartner.usuario_nombre}
+                        <p className="mt-4 text-sm font-bold leading-tight truncate">
+                          {ownerName}
                         </p>
-                      ) : null}
-                    </div>
-                  );
-                })}
+
+                        {swapPartner ? (
+                          <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-[var(--primary-200)]">
+                            <span aria-hidden>↔</span>
+                            {swapPartner.usuario_nombre}
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
@@ -737,7 +742,9 @@ export const PlanningCalendarPage = () => {
 
         {!rotationLoading && availableRotationYears.length > 0 && (
           <article key={activeOverviewMonthKey} className="glass-panel p-4">
-            <div className="grid grid-cols-7 gap-1">
+            <div className="overflow-x-auto">
+              <div className="min-w-[640px]">
+                <div className="grid grid-cols-7 gap-1">
               {weekdayHeader.map((label) => (
                 <div
                   key={`${activeOverviewMonthKey}-${label}`}
@@ -746,10 +753,10 @@ export const PlanningCalendarPage = () => {
                   {label}
                 </div>
               ))}
-            </div>
+                </div>
 
-            <div className="mt-2 grid grid-cols-7 gap-1">
-              {activeOverviewMonthCells.map((cell, index) => {
+                <div className="mt-2 grid grid-cols-7 gap-1">
+                  {activeOverviewMonthCells.map((cell, index) => {
 
                 if (!cell) {
                   return (
@@ -806,33 +813,35 @@ export const PlanningCalendarPage = () => {
                   ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
                   : "hover:scale-[1.01] hover:shadow-lg";
 
-                return (
-                  <button
-                    key={`${activeOverviewMonthKey}-${iso}`}
-                    type="button"
-                    onClick={() => {
-                      setSelectedWeekId(rotationItem.semana_id);
-                      void reloadWeekDetail(rotationItem.semana_id);
-                    }}
-                    className={`min-h-24 w-full rounded-xl border p-2 text-left transition-all ${baseClasses} ${selectedWeekClasses} ${todayRingClasses}`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <p className="text-[10px] font-black opacity-60">{cell.getUTCDate()}</p>
-                    </div>
+                    return (
+                      <button
+                        key={`${activeOverviewMonthKey}-${iso}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedWeekId(rotationItem.semana_id);
+                          void reloadWeekDetail(rotationItem.semana_id);
+                        }}
+                        className={`min-h-24 w-full rounded-xl border p-2 text-left transition-all ${baseClasses} ${selectedWeekClasses} ${todayRingClasses}`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <p className="text-[10px] font-black opacity-60">{cell.getUTCDate()}</p>
+                        </div>
 
-                    <p className="mt-4 text-sm font-bold leading-tight truncate">
-                      {ownerDisplayName}
-                    </p>
+                        <p className="mt-4 text-sm font-bold leading-tight truncate">
+                          {ownerDisplayName}
+                        </p>
 
-                    {swapPartner ? (
-                      <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-[var(--primary-200)]">
-                        <span aria-hidden>↔</span>
-                        {swapPartner.usuario_nombre}
-                      </p>
-                    ) : null}
-                  </button>
-                );
-              })}
+                        {swapPartner ? (
+                          <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-[var(--primary-200)]">
+                            <span aria-hidden>↔</span>
+                            {swapPartner.usuario_nombre}
+                          </p>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </article>
         )}

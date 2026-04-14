@@ -186,9 +186,21 @@
 
 @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
 @keyframes slideUp { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes requestFocusGlow {
+  0% {
+    background-color: rgba(173, 181, 189, 0);
+  }
+  18% {
+    background-color: rgba(173, 181, 189, 0.12);
+  }
+  100% {
+    background-color: rgba(173, 181, 189, 0);
+  }
+}
 
 .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
 .animate-slide-up, .float-in { animation: slideUp 0.25s ease-out forwards; }
+.request-focus-glow { animation: requestFocusGlow 2.3s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
 .mono {
   font-family: 'JetBrains Mono', monospace;

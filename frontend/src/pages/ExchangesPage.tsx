@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
@@ -97,6 +98,16 @@ type RequestGroup = {
   items: SolicitudIntercambio[];
 };
 
+type RequestDisplayItem =
+  | { kind: "group"; createdAt: string; group: RequestGroup }
+  | { kind: "single"; createdAt: string; item: SolicitudIntercambio };
+
+type ExchangesNavigationState = {
+  focusRequestId?: string;
+  focusRequestSection?: ExchangeSection;
+  focusAt?: number;
+};
+
 type RequestDaySummary = {
   origenLabel: string;
   destinoLabel: string;
@@ -116,18 +127,11 @@ const statusLabel: Record<EstadoSolicitud, string> = {
   cancelada: "Cancelada",
 };
 
-const requestPriority: Record<EstadoSolicitud, number> = {
-  pendiente: 0,
-  aceptada: 1,
-  rechazada: 2,
-  cancelada: 3,
-};
-
 const requestCardClass: Record<EstadoSolicitud, string> = {
-  pendiente: "border-zinc-300 bg-zinc-100 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/80",
-  aceptada: "border-zinc-300 bg-zinc-100 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/80",
-  rechazada: "border-zinc-300 bg-zinc-100 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/80",
-  cancelada: "border-zinc-300 bg-zinc-100 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/80",
+  pendiente: "border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/80",
+  aceptada: "border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/80",
+  rechazada: "border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/80",
+  cancelada: "border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/80",
 };
 
 const extractGroupId = (motivo: string): string | null => {
@@ -162,6 +166,29 @@ const groupRequests = (
 
   return { groups, singles };
 };
+
+const buildRequestDisplayItems = (
+  grouped: { groups: RequestGroup[]; singles: SolicitudIntercambio[] },
+): RequestDisplayItem[] => {
+  const groupedItems: RequestDisplayItem[] = grouped.groups.map((group) => ({
+    kind: "group",
+    group,
+    createdAt: group.items[0]?.fecha_creacion ?? "",
+  }));
+
+  const singleItems: RequestDisplayItem[] = grouped.singles.map((item) => ({
+    kind: "single",
+    item,
+    createdAt: item.fecha_creacion,
+  }));
+
+  return [...groupedItems, ...singleItems].sort((left, right) =>
+    right.createdAt.localeCompare(left.createdAt),
+  );
+};
+
+const buildRequestCardDomId = (rawId: string): string =>
+  `exchange-request-${rawId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
 const sortByDay = (assignments: Asignacion[]): Asignacion[] => {
   return [...assignments].sort((a, b) => dayOrder.indexOf(a.dia) - dayOrder.indexOf(b.dia));
@@ -277,13 +304,9 @@ const buildRequestDaySummary = (
 };
 
 const sortRequestsForScan = (requests: SolicitudIntercambio[]): SolicitudIntercambio[] => {
-  return [...requests].sort((left, right) => {
-    const priorityDiff = requestPriority[left.estado] - requestPriority[right.estado];
-    if (priorityDiff !== 0) {
-      return priorityDiff;
-    }
-    return right.fecha_creacion.localeCompare(left.fecha_creacion);
-  });
+  return [...requests].sort((left, right) =>
+    right.fecha_creacion.localeCompare(left.fecha_creacion),
+  );
 };
 
 const panelCardClass = "glass-panel p-4";
@@ -291,6 +314,9 @@ const selectChipClass = "glass-chip w-full rounded-lg px-3 py-2 text-left text-s
 const textAreaControlClass = "glass-input mt-2 min-h-24 w-full rounded-xl px-4 py-3 text-base resize-none";
 
 export const ExchangesPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const {
     users,
     weeks,
@@ -446,6 +472,30 @@ export const ExchangesPage = () => {
 
   const groupedReceived = useMemo(() => groupRequests(receivedRequests), [receivedRequests]);
   const groupedSent = useMemo(() => groupRequests(sentRequests), [sentRequests]);
+  const receivedCardIdByRequestId = useMemo(() => {
+    const map = new Map<string, string>();
+
+    groupedReceived.singles.forEach((item) => {
+      map.set(item.id, buildRequestCardDomId(item.id));
+    });
+
+    groupedReceived.groups.forEach((group) => {
+      const groupCardId = buildRequestCardDomId(`group-${group.groupId}`);
+      group.items.forEach((item) => {
+        map.set(item.id, groupCardId);
+      });
+    });
+
+    return map;
+  }, [groupedReceived]);
+  const receivedDisplayItems = useMemo(
+    () => buildRequestDisplayItems(groupedReceived),
+    [groupedReceived],
+  );
+  const sentDisplayItems = useMemo(
+    () => buildRequestDisplayItems(groupedSent),
+    [groupedSent],
+  );
   const receivedCount = receivedRequests.length;
   const sentCount = sentRequests.length;
   const isBolsaMode = form.modo_compensacion === "bolsa";
@@ -461,34 +511,72 @@ export const ExchangesPage = () => {
   const [selectedExchangeTab, setSelectedExchangeTab] = useState<ExchangeSection>("recibidas");
   const [newRequestOpen, setNewRequestOpen] = useState(false);
   const [selectedSummary, setSelectedSummary] = useState<"owed" | "debt" | null>(null);
+  const [showSubmitTip, setShowSubmitTip] = useState(true);
+  const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
 
   const requestBalanceByUser = useMemo(() => {
     const map = new Map<string, { name: string; me_deben: number; debo: number }>();
 
-    receivedRequests.forEach((item) => {
-      if (item.estado === "rechazada" || item.estado === "cancelada") {
+    const currentUserId = user?.id;
+    if (!currentUserId) {
+      return map;
+    }
+
+    const applyNetDelta = (counterpartId: string, counterpartName: string, delta: number) => {
+      const current = map.get(counterpartId) ?? { name: counterpartName, me_deben: 0, debo: 0 };
+      const nextNet = current.me_deben - current.debo + delta;
+      current.name = counterpartName;
+      current.me_deben = Math.max(nextNet, 0);
+      current.debo = Math.max(-nextNet, 0);
+      map.set(counterpartId, current);
+    };
+
+    const processRequest = (item: SolicitudIntercambio) => {
+      if (item.estado !== "aceptada") {
         return;
       }
 
-      const id = item.solicitante.id;
-      const current = map.get(id) ?? { name: item.solicitante.nombre, me_deben: 0, debo: 0 };
-      current.me_deben += item.dias_estimados;
-      map.set(id, current);
-    });
-
-    sentRequests.forEach((item) => {
-      if (item.estado === "rechazada" || item.estado === "cancelada") {
+      const counterpart = item.solicitante.id === currentUserId ? item.receptor : item.solicitante;
+      const days = item.dias_estimados;
+      if (days <= 0) {
         return;
       }
 
-      const id = item.receptor.id;
-      const current = map.get(id) ?? { name: item.receptor.nombre, me_deben: 0, debo: 0 };
-      current.debo += item.dias_estimados;
-      map.set(id, current);
-    });
+      if (item.es_compensacion) {
+        const solicitanteEsDeudor = item.rol_solicitante_compensacion === "deudor";
+        const deudorId = solicitanteEsDeudor ? item.solicitante.id : item.receptor.id;
+        const acreedorId = solicitanteEsDeudor ? item.receptor.id : item.solicitante.id;
+
+        // Compensation requests reduce existing debt.
+        if (currentUserId === deudorId) {
+          applyNetDelta(counterpart.id, counterpart.nombre, days);
+          return;
+        }
+        if (currentUserId === acreedorId) {
+          applyNetDelta(counterpart.id, counterpart.nombre, -days);
+        }
+        return;
+      }
+
+      if (item.modo_compensacion !== "bolsa") {
+        return;
+      }
+
+      // In bolsa mode, the requester (solicitante) is the deudor if accepted.
+      if (currentUserId === item.solicitante.id) {
+        applyNetDelta(counterpart.id, counterpart.nombre, -days);
+        return;
+      }
+      if (currentUserId === item.receptor.id) {
+        applyNetDelta(counterpart.id, counterpart.nombre, days);
+      }
+    };
+
+    receivedRequests.forEach(processRequest);
+    sentRequests.forEach(processRequest);
 
     return map;
-  }, [receivedRequests, sentRequests]);
+  }, [receivedRequests, sentRequests, user?.id]);
 
   const bolsaBalanceByUser = useMemo(() => {
     const map = new Map<string, { name: string; me_deben: number; debo: number }>();
@@ -676,6 +764,72 @@ export const ExchangesPage = () => {
     return `te deben ${owed} días y debes ${debt} días`;
   };
 
+  const formatCurrentCompactSummary = (
+    counterpartName: string,
+    owed: number,
+    debt: number,
+  ): string => {
+    if (owed > 0 && debt === 0) {
+      return `${counterpartName} te debe ${owed}d`;
+    }
+    if (debt > 0 && owed === 0) {
+      return `Debes ${debt}d`;
+    }
+    return "Saldado";
+  };
+
+  const formatProjectedCompactSummary = (owed: number, debt: number): string => {
+    if (owed > 0 && debt === 0) {
+      return `te deberá ${owed}d`;
+    }
+    if (debt > 0 && owed === 0) {
+      return `deberás ${debt}d`;
+    }
+    return "quedará saldado";
+  };
+
+  const getAcceptedNetDeltaForCurrentUser = (
+    item: SolicitudIntercambio,
+    estimatedDays: number = item.dias_estimados,
+  ): number => {
+    const currentUserId = user?.id;
+    if (!currentUserId) {
+      return 0;
+    }
+
+    const days = estimatedDays;
+    if (days <= 0) {
+      return 0;
+    }
+
+    if (item.es_compensacion) {
+      const solicitanteEsDeudor = item.rol_solicitante_compensacion === "deudor";
+      const deudorId = solicitanteEsDeudor ? item.solicitante.id : item.receptor.id;
+      const acreedorId = solicitanteEsDeudor ? item.receptor.id : item.solicitante.id;
+
+      if (currentUserId === deudorId) {
+        return days;
+      }
+      if (currentUserId === acreedorId) {
+        return -days;
+      }
+      return 0;
+    }
+
+    if (item.modo_compensacion !== "bolsa") {
+      return 0;
+    }
+
+    if (currentUserId === item.solicitante.id) {
+      return -days;
+    }
+    if (currentUserId === item.receptor.id) {
+      return days;
+    }
+
+    return 0;
+  };
+
   const submitTip = useMemo(() => {
     if (!form.receptor_id) {
       return "Selecciona un compañero.";
@@ -714,7 +868,101 @@ export const ExchangesPage = () => {
     form.modo_compensacion,
   ]);
 
+  const visibleSubmitTip = showSubmitTip ? submitTip : "";
   const isSubmitDisabled = submitBusy || Boolean(submitTip);
+
+  useEffect(() => {
+    const state = (location.state as ExchangesNavigationState | null) ?? null;
+    const focusRequestId = state?.focusRequestId;
+    if (!focusRequestId) {
+      return;
+    }
+
+    setSelectedExchangeTab(state?.focusRequestSection ?? "recibidas");
+
+    const targetCardId = receivedCardIdByRequestId.get(focusRequestId);
+    if (!targetCardId) {
+      return;
+    }
+
+    const tryFocus = () => {
+      const targetElement = document.getElementById(targetCardId);
+      if (!targetElement) {
+        return false;
+      }
+
+      targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedCardId(targetCardId);
+
+      navigate(location.pathname, { replace: true, state: null });
+
+      window.setTimeout(() => {
+        setHighlightedCardId((current) => (current === targetCardId ? null : current));
+      }, 2300);
+
+      return true;
+    };
+
+    const initialTimer = window.setTimeout(() => {
+      if (tryFocus()) {
+        return;
+      }
+
+      window.setTimeout(() => {
+        void tryFocus();
+      }, 220);
+    }, 80);
+
+    return () => {
+      window.clearTimeout(initialTimer);
+    };
+  }, [location.pathname, location.state, navigate, receivedCardIdByRequestId]);
+
+  useEffect(() => {
+    const onFocusRequest = (event: Event) => {
+      const customEvent = event as CustomEvent<ExchangesNavigationState>;
+      const focusRequestId = customEvent.detail?.focusRequestId;
+      if (!focusRequestId) {
+        return;
+      }
+
+      setSelectedExchangeTab(customEvent.detail?.focusRequestSection ?? "recibidas");
+
+      const targetCardId = receivedCardIdByRequestId.get(focusRequestId);
+      if (!targetCardId) {
+        return;
+      }
+
+      const tryFocus = () => {
+        const targetElement = document.getElementById(targetCardId);
+        if (!targetElement) {
+          return false;
+        }
+
+        targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedCardId(targetCardId);
+
+        window.setTimeout(() => {
+          setHighlightedCardId((current) => (current === targetCardId ? null : current));
+        }, 2300);
+
+        return true;
+      };
+
+      window.setTimeout(() => {
+        if (tryFocus()) {
+          return;
+        }
+
+        window.setTimeout(() => {
+          void tryFocus();
+        }, 220);
+      }, 80);
+    };
+
+    window.addEventListener("netflow:focus-request", onFocusRequest as EventListener);
+    return () => window.removeEventListener("netflow:focus-request", onFocusRequest as EventListener);
+  }, [receivedCardIdByRequestId]);
 
   useEffect(() => {
     let active = true;
@@ -890,6 +1138,7 @@ export const ExchangesPage = () => {
   }, [destinationOptions]);
 
   const toggleOriginSelection = (assignment: Asignacion) => {
+    setShowSubmitTip(true);
     if (form.tipo === "semana") {
       setForm((current) => ({
         ...current,
@@ -919,6 +1168,7 @@ export const ExchangesPage = () => {
   };
 
   const toggleDestinationSelection = (assignment: Asignacion) => {
+    setShowSubmitTip(true);
     if (form.modo_compensacion === "bolsa") {
       return;
     }
@@ -1095,11 +1345,13 @@ export const ExchangesPage = () => {
       setSelectedDestinationIds([]);
       setForm((current) => ({
         ...current,
+        receptor_id: "",
         tipo: "dia",
         asignacion_origen_id: "",
         asignacion_destino_id: "",
         motivo: "",
       }));
+      setShowSubmitTip(false);
 
       await Promise.all([
         reloadIntercambios(),
@@ -1138,6 +1390,12 @@ export const ExchangesPage = () => {
         const response = await api.rechazarIntercambio(requestId);
         setNotice(response.detail);
       }
+
+      window.dispatchEvent(
+        new CustomEvent("netflow:exchange-processed", {
+          detail: { requestId, action },
+        }),
+      );
 
       try {
         await Promise.all([
@@ -1179,6 +1437,7 @@ export const ExchangesPage = () => {
     groupedItems = 1,
     keyOverride?: string,
     daySummary?: RequestDaySummary,
+    domId?: string,
   ) => {
     const cleanMotivo = stripGroupToken(item.motivo);
     const detailDays = daySummary ?? buildRequestDaySummary(item, undefined, weeks);
@@ -1207,6 +1466,25 @@ export const ExchangesPage = () => {
     const scopeLabel = item.tipo === "semana" ? "Semana completa" : `${groupedItems} dia(s)`;
     const compensationLabel = item.modo_compensacion === "inmediata" ? "Inmediata" : "Bolsa";
     const createdLabel = item.fecha_creacion.slice(0, 10);
+    const counterpartId = section === "recibidas" ? item.solicitante.id : item.receptor.id;
+    const baseBalance = activeNettedByUser.get(counterpartId)
+      ?? requestNettedByUser.get(counterpartId)
+      ?? { name: counterpartName, me_deben: 0, debo: 0 };
+    const currentNet = baseBalance.me_deben - baseBalance.debo;
+    const pendingDaysEstimate =
+      item.tipo === "dia"
+        ? Math.max(groupedItems, item.dias_estimados)
+        : item.dias_estimados;
+    const acceptDelta = item.estado === "pendiente"
+      ? getAcceptedNetDeltaForCurrentUser(item, pendingDaysEstimate)
+      : 0;
+    const projectedNet = currentNet + acceptDelta;
+    const projectedBalance = {
+      me_deben: Math.max(projectedNet, 0),
+      debo: Math.max(-projectedNet, 0),
+    };
+    const cardDomId = domId ?? buildRequestCardDomId(item.id);
+    const isHighlighted = highlightedCardId === cardDomId;
     const statusIcon = isTransitioning
       ? <span className="h-3 w-3 animate-spin rounded-full border border-current/40 border-t-current" />
       : item.estado === "aceptada"
@@ -1236,8 +1514,9 @@ export const ExchangesPage = () => {
 
     return (
       <div
+        id={cardDomId}
         key={keyOverride ?? item.id}
-        className={`rounded-xl border p-4 shadow-sm transition hover:shadow-md ${cardClass} ${sectionHighlight}`}
+        className={`rounded-xl border p-4 shadow-sm transition hover:shadow-md ${cardClass} ${sectionHighlight} ${isHighlighted ? "request-focus-glow" : ""}`}
       >
         <div className="flex items-center justify-between gap-2 text-[11px]">
           <div className="flex min-w-0 items-center gap-1.5">
@@ -1290,25 +1569,40 @@ export const ExchangesPage = () => {
         )}
 
         {item.estado === "pendiente" && section === "recibidas" && (
-          <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={() => void handleRequestAction(item.id, "accept")}
-              disabled={isTransitioning || submitBusy}
-              className="glass-button glass-button-success inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isAccepting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-              {isAccepting ? "Aceptando..." : "Aceptar"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleRequestAction(item.id, "reject")}
-              disabled={isTransitioning || submitBusy}
-              className="glass-button glass-button-danger inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isRejecting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" />}
-              {isRejecting ? "Rechazando..." : "Rechazar"}
-            </button>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => void handleRequestAction(item.id, "accept")}
+                disabled={isTransitioning || submitBusy}
+                className="glass-button glass-button-success inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isAccepting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+                {isAccepting ? "Aceptando..." : "Aceptar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleRequestAction(item.id, "reject")}
+                disabled={isTransitioning || submitBusy}
+                className="glass-button glass-button-danger inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isRejecting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" />}
+                {isRejecting ? "Rechazando..." : "Rechazar"}
+              </button>
+            </div>
+
+            <div className="glass-soft rounded-lg border border-[var(--color-surface-border)] px-2.5 py-2 text-[10px] sm:ml-auto sm:max-w-[16.5rem]">
+              <p className="mt-1 text-[var(--primary-200)]">
+                <span className="font-semibold text-[var(--primary-50)]">
+                  {formatCurrentCompactSummary(counterpartName, baseBalance.me_deben, baseBalance.debo)}
+                </span>
+                {", Si aceptas "}
+                <span className="font-semibold text-[var(--primary-50)]">
+                  {formatProjectedCompactSummary(projectedBalance.me_deben, projectedBalance.debo)}
+                </span>
+                .
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -1329,6 +1623,7 @@ export const ExchangesPage = () => {
       group.items.length,
       `group-${group.groupId}`,
       daySummary,
+      buildRequestCardDomId(`group-${group.groupId}`),
     );
   };
 
@@ -1357,6 +1652,7 @@ export const ExchangesPage = () => {
             <CustomSelect
               value={form.receptor_id}
               onChange={(val) => {
+                setShowSubmitTip(true);
                 const receptorId = String(val);
                 setForm((current) => ({
                   ...current,
@@ -1395,14 +1691,15 @@ export const ExchangesPage = () => {
                   <button
                     key={option}
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      setShowSubmitTip(true);
                       setForm((current) => ({
                         ...current,
                         tipo: option,
                         asignacion_origen_id: "",
                         asignacion_destino_id: "",
-                      }))
-                    }
+                      }));
+                    }}
                     className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                       form.tipo === option
                         ? "bg-[var(--color-surface-bright)] text-white"
@@ -1423,6 +1720,7 @@ export const ExchangesPage = () => {
                     key={option}
                     type="button"
                     onClick={() => {
+                      setShowSubmitTip(true);
                       setSelectedDestinationIds([]);
                       setForm((current) => ({
                         ...current,
@@ -1460,7 +1758,10 @@ export const ExchangesPage = () => {
                 <WeekSelector
                   weeks={myWeekOptions}
                   selectedWeekId={selectedWeekId}
-                  onChange={setSelectedWeekId}
+                  onChange={(weekId) => {
+                    setShowSubmitTip(true);
+                    setSelectedWeekId(weekId);
+                  }}
                   label=""
                   formatOption={formatWeekSelectLabel}
                 />
@@ -1536,7 +1837,10 @@ export const ExchangesPage = () => {
                       <WeekSelector
                         weeks={companionWeekOptions}
                         selectedWeekId={companionWeekId}
-                        onChange={setCompanionWeekId}
+                        onChange={(weekId) => {
+                          setShowSubmitTip(true);
+                          setCompanionWeekId(weekId);
+                        }}
                         label=""
                         formatOption={formatWeekSelectLabel}
                       />
@@ -1588,7 +1892,10 @@ export const ExchangesPage = () => {
             Motivo
             <textarea
               value={form.motivo}
-              onChange={(event) => setForm((current) => ({ ...current, motivo: event.target.value }))}
+              onChange={(event) => {
+                setShowSubmitTip(true);
+                setForm((current) => ({ ...current, motivo: event.target.value }));
+              }}
               className={textAreaControlClass}
             />
           </label>
@@ -1613,8 +1920,8 @@ export const ExchangesPage = () => {
               {submitBusy ? "Enviando..." : "Enviar solicitud"}
             </button>
           </div>
-          {submitTip && (
-            <NoticeBanner message={submitTip} kind="warning" />
+          {visibleSubmitTip && (
+            <NoticeBanner message={visibleSubmitTip} kind="warning" />
           )}
         </form>
 
@@ -1624,7 +1931,7 @@ export const ExchangesPage = () => {
         </div>
       </article>
 
-      <article className="glass-card float-in space-y-5 p-5 md:p-6">
+      <article className="glass-card float-in space-y-5 p-5 md:p-6 xl:self-start">
         <div className="space-y-4">
           <div>
             <h3 className="text-xl font-bold text-[color:var(--ink)]">Bolsa</h3>
@@ -1711,22 +2018,28 @@ export const ExchangesPage = () => {
           ))}
         </div>
 
-        <div className="mt-3 space-y-3 max-h-[58vh] overflow-y-auto pr-1">
+        <div className="mt-3 space-y-3 max-h-[58vh] overflow-y-auto pr-1 xl:mt-4 xl:max-h-[calc(100dvh-14rem)]">
           {selectedExchangeTab === "recibidas" ? (
             <>
-              {groupedReceived.groups.length === 0 && groupedReceived.singles.length === 0 && (
+              {receivedDisplayItems.length === 0 && (
                 <p className="text-sm text-[color:var(--ink-soft)]">No tienes solicitudes recibidas.</p>
               )}
-              {groupedReceived.groups.map((group) => renderGroup(group, "recibidas"))}
-              {groupedReceived.singles.map((item) => renderRequestItem(item, "recibidas"))}
+              {receivedDisplayItems.map((entry) =>
+                entry.kind === "group"
+                  ? renderGroup(entry.group, "recibidas")
+                  : renderRequestItem(entry.item, "recibidas"),
+              )}
             </>
           ) : (
             <>
-              {groupedSent.groups.length === 0 && groupedSent.singles.length === 0 && (
+              {sentDisplayItems.length === 0 && (
                 <p className="text-sm text-[color:var(--ink-soft)]">No has enviado solicitudes.</p>
               )}
-              {groupedSent.groups.map((group) => renderGroup(group, "enviadas"))}
-              {groupedSent.singles.map((item) => renderRequestItem(item, "enviadas"))}
+              {sentDisplayItems.map((entry) =>
+                entry.kind === "group"
+                  ? renderGroup(entry.group, "enviadas")
+                  : renderRequestItem(entry.item, "enviadas"),
+              )}
             </>
           )}
         </div>

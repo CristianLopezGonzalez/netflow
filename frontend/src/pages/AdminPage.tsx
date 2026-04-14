@@ -307,8 +307,8 @@ export const AdminPage = () => {
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)]">
-            <table className="min-w-full text-left text-xs">
+          <div className="mt-6 overflow-x-auto rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)]">
+            <table className="min-w-[760px] text-left text-xs">
               <thead className="bg-white/5 text-[var(--primary-400)] uppercase tracking-[0.18em] text-[10px]">
                 <tr>
                   <th className="px-4 py-3">Nombre</th>

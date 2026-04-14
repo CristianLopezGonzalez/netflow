@@ -58,7 +58,7 @@ export default function CustomTimePicker({
 
   const dropdown = useMemo(() => (
     <div
-      className="absolute z-[9999] bg-gray-900/50 backdrop-blur-md border border-[var(--color-surface-border)] rounded-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 p-4"
+      className="absolute z-[9999] bg-[rgba(28,30,34,0.72)] backdrop-blur-sm border border-[var(--color-surface-border)] rounded-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 p-4"
       style={portalPos ? { 
         top: `${portalPos.top}px`, 
         left: `${portalPos.left}px`, 
@@ -77,7 +77,7 @@ export default function CustomTimePicker({
               onClick={() => setTime(hour, m)}
               className={cn(
                 "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all text-center",
-                h === hour ? "bg-[var(--primary-600)] text-white shadow-md shadow-blue-500/20" : "text-[var(--primary-400)] hover:bg-white/5 hover:text-white"
+                h === hour ? "bg-[var(--primary-600)] text-white shadow-md shadow-black/20" : "text-[var(--primary-400)] hover:bg-white/5 hover:text-white"
               )}
             >
               {hour}
@@ -95,7 +95,7 @@ export default function CustomTimePicker({
               onClick={() => { setTime(h, min); setIsOpen(false); }}
               className={cn(
                 "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all text-center",
-                m === min ? "bg-[var(--primary-600)] text-white shadow-md shadow-blue-500/20" : "text-[var(--primary-400)] hover:bg-white/5 hover:text-white"
+                m === min ? "bg-[var(--primary-600)] text-white shadow-md shadow-black/20" : "text-[var(--primary-400)] hover:bg-white/5 hover:text-white"
               )}
             >
               {min}

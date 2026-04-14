@@ -99,7 +99,7 @@ export default function CustomDatePicker({
 
   const calendar = useMemo(() => (
     <div
-      className="absolute z-[9999] bg-gray-900/50 backdrop-blur-md border border-[var(--color-surface-border)] rounded-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 p-4"
+      className="absolute z-[9999] bg-[rgba(28,30,34,0.72)] backdrop-blur-sm border border-[var(--color-surface-border)] rounded-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 p-4"
       style={portalPos ? { 
         top: `${portalPos.top}px`, 
         left: `${portalPos.left}px`, 
@@ -142,7 +142,7 @@ export default function CustomDatePicker({
               className={cn(
                 "w-8 h-8 rounded-md text-[10px] font-bold transition-all flex items-center justify-center relative",
                 selected
-                  ? "bg-[var(--primary-600)] text-white shadow-md shadow-blue-500/20"
+                  ? "bg-[var(--primary-600)] text-white shadow-md shadow-black/20"
                   : workDay
                     ? "bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
                     : today
@@ -167,7 +167,7 @@ export default function CustomDatePicker({
         </button>
         <button 
           onClick={() => { setViewDate(new Date()); }} 
-          className="text-[9px] font-black uppercase text-[var(--primary-400)] px-2 py-1.5 hover:bg-blue-500/10 rounded-md transition-colors"
+          className="text-[9px] font-black uppercase text-[var(--primary-400)] px-2 py-1.5 hover:bg-white/10 rounded-md transition-colors"
         >
           Hoy
         </button>
