@@ -39,68 +39,9 @@ const sortWeeksByStart = (weekList: Semana[]) =>
       - parseIsoDate(right.fecha_inicio_semana).getTime(),
   );
 
-const addUtcDays = (date: Date, days: number): Date =>
-  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + days));
-
-const formatAssignmentDate = (assignment: Asignacion, week: Semana): Date => {
-  const start = parseIsoDate(week.fecha_inicio_semana);
-  const dayIndex = dayOrder.indexOf(assignment.dia);
-  return addUtcDays(start, dayIndex);
-};
-
-const formatSummaryDates = (dates: Date[]): string => {
-  if (dates.length === 0) {
-    return "Sin dias";
-  }
-
-  const sortedDates = [...dates].sort((left, right) => left.getTime() - right.getTime());
-  const first = sortedDates[0];
-  const last = sortedDates[sortedDates.length - 1];
-  const formatter = new Intl.DateTimeFormat("es-ES", { month: "short", timeZone: "UTC" });
-
-  const formatDate = (date: Date, includeYear = false) => {
-    const day = `${date.getUTCDate()}`.padStart(2, "0");
-    const month = formatter.format(date).replace(".", "").toLowerCase();
-    const year = date.getUTCFullYear();
-    return includeYear ? `${day} ${month} ${year}` : `${day} ${month}`;
-  };
-
-  if (sortedDates.length === 1) {
-    return formatDate(first, true);
-  }
-
-  const isConsecutive = sortedDates.every(
-    (date, index) => index === 0 || date.getTime() === sortedDates[index - 1].getTime() + 24 * 60 * 60 * 1000,
-  );
-
-  if (isConsecutive) {
-    if (first.getUTCFullYear() === last.getUTCFullYear()) {
-      return `${formatDate(first, false)} - ${formatDate(last, true)}`;
-    }
-    return `${formatDate(first, true)} - ${formatDate(last, true)}`;
-  }
-
-  const sameYear = sortedDates.every((date) => date.getUTCFullYear() === first.getUTCFullYear());
-  if (sameYear) {
-    return sortedDates
-      .map((date) => formatDate(date, false))
-      .join(", ") + ` ${first.getUTCFullYear()}`;
-  }
-
-  return sortedDates.map((date) => formatDate(date, true)).join(", ");
-};
-
 const GROUP_TOKEN_REGEX = /^\[#GRUPO:([^\]]+)\]\s*/;
 
 type ExchangeSection = "recibidas" | "enviadas";
-type RequestGroup = {
-  groupId: string;
-  items: SolicitudIntercambio[];
-};
-
-type RequestDisplayItem =
-  | { kind: "group"; createdAt: string; group: RequestGroup }
-  | { kind: "single"; createdAt: string; item: SolicitudIntercambio };
 
 type ExchangesNavigationState = {
   focusRequestId?: string;
@@ -146,58 +87,7 @@ const requestCardClass: Record<EstadoSolicitud, string> = {
   cancelada: "border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/80",
 };
 
-const extractGroupId = (motivo: string): string | null => {
-  const match = motivo.match(GROUP_TOKEN_REGEX);
-  return match?.[1] ?? null;
-};
-
 const stripGroupToken = (motivo: string): string => motivo.replace(GROUP_TOKEN_REGEX, "").trim();
-
-const groupRequests = (
-  requests: SolicitudIntercambio[],
-): { groups: RequestGroup[]; singles: SolicitudIntercambio[] } => {
-  const groupedMap = new Map<string, SolicitudIntercambio[]>();
-  const singles: SolicitudIntercambio[] = [];
-
-  for (const request of requests) {
-    const groupId = extractGroupId(request.motivo);
-    if (!groupId) {
-      singles.push(request);
-      continue;
-    }
-
-    const current = groupedMap.get(groupId) ?? [];
-    current.push(request);
-    groupedMap.set(groupId, current);
-  }
-
-  const groups = Array.from(groupedMap.entries()).map(([groupId, items]) => ({
-    groupId,
-    items,
-  }));
-
-  return { groups, singles };
-};
-
-const buildRequestDisplayItems = (
-  grouped: { groups: RequestGroup[]; singles: SolicitudIntercambio[] },
-): RequestDisplayItem[] => {
-  const groupedItems: RequestDisplayItem[] = grouped.groups.map((group) => ({
-    kind: "group",
-    group,
-    createdAt: group.items[0]?.fecha_creacion ?? "",
-  }));
-
-  const singleItems: RequestDisplayItem[] = grouped.singles.map((item) => ({
-    kind: "single",
-    item,
-    createdAt: item.fecha_creacion,
-  }));
-
-  return [...groupedItems, ...singleItems].sort((left, right) =>
-    right.createdAt.localeCompare(left.createdAt),
-  );
-};
 
 const buildRequestCardDomId = (rawId: string): string =>
   `exchange-request-${rawId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
@@ -206,112 +96,126 @@ const sortByDay = (assignments: Asignacion[]): Asignacion[] => {
   return [...assignments].sort((a, b) => dayOrder.indexOf(a.dia) - dayOrder.indexOf(b.dia));
 };
 
+const addUtcDays = (date: Date, days: number): Date =>
+  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + days));
+
+const formatSummaryDates = (dates: Date[]): string => {
+  if (dates.length === 0) {
+    return "Sin días";
+  }
+
+  const sortedDates = [...dates].sort((left, right) => left.getTime() - right.getTime());
+  const first = sortedDates[0];
+  const last = sortedDates[sortedDates.length - 1];
+  const formatter = new Intl.DateTimeFormat("es-ES", { month: "short", timeZone: "UTC" });
+
+  const formatDate = (date: Date, includeYear = false) => {
+    const day = `${date.getUTCDate()}`.padStart(2, "0");
+    const month = formatter.format(date).replace(".", "").toLowerCase();
+    const year = date.getUTCFullYear();
+    return includeYear ? `${day} ${month} ${year}` : `${day} ${month}`;
+  };
+
+  if (sortedDates.length === 1) {
+    return formatDate(first, true);
+  }
+
+  const isConsecutive = sortedDates.every(
+    (date, index) => index === 0 || date.getTime() === sortedDates[index - 1].getTime() + 24 * 60 * 60 * 1000,
+  );
+
+  if (isConsecutive) {
+    if (first.getUTCFullYear() === last.getUTCFullYear()) {
+      return `${formatDate(first, false)} - ${formatDate(last, true)}`;
+    }
+    return `${formatDate(first, true)} - ${formatDate(last, true)}`;
+  }
+
+  return sortedDates.map((date) => formatDate(date, true)).join(", ");
+};
+
 const buildRequestDaySummary = (
   item: SolicitudIntercambio,
-  items: SolicitudIntercambio[] = [item],
   weeks: Semana[],
 ): RequestDaySummary => {
   const weekById = new Map(weeks.map((weekItem) => [weekItem.id, weekItem]));
 
-  const originAssignments = items.map((request) => request.asignacion_origen);
-  const destinationAssignments = items
-    .map((request) => request.asignacion_destino)
-    .filter((assignment): assignment is Asignacion => Boolean(assignment));
-
-  const formatDayRangesByDate = (entries: Array<{ dia: Asignacion["dia"]; date: Date }>) => {
-    if (entries.length === 0) {
-      return "Sin dias";
+  const formatOneAssignment = (assignment: Asignacion | null): string => {
+    if (!assignment) {
+      return "Sin días";
     }
 
-    const uniqueByDate = Array.from(
-      new Map(entries.map((entry) => [entry.date.toISOString().slice(0, 10), entry])).values(),
-    ).sort((left, right) => left.date.getTime() - right.date.getTime());
-
-    const ranges: string[] = [];
-    let rangeStart = uniqueByDate[0];
-    let rangeEnd = uniqueByDate[0];
-
-    for (let index = 1; index < uniqueByDate.length; index += 1) {
-      const current = uniqueByDate[index];
-      if (current.date.getTime() === rangeEnd.date.getTime() + 24 * 60 * 60 * 1000) {
-        rangeEnd = current;
-        continue;
-      }
-
-      ranges.push(
-        rangeStart.dia === rangeEnd.dia
-          ? rangeStart.dia
-          : `${rangeStart.dia}-${rangeEnd.dia}`,
-      );
-      rangeStart = current;
-      rangeEnd = current;
+    const week = weekById.get(assignment.semana);
+    if (!week) {
+      return assignment.dia;
     }
 
-    ranges.push(
-      rangeStart.dia === rangeEnd.dia
-        ? rangeStart.dia
-        : `${rangeStart.dia}-${rangeEnd.dia}`,
-    );
+    const dayIndex = dayOrder.indexOf(assignment.dia);
+    if (dayIndex < 0) {
+      return assignment.dia;
+    }
 
-    return ranges.join(", ");
+    const date = addUtcDays(parseIsoDate(week.fecha_inicio_semana), dayIndex);
+    return `${formatSummaryDates([date])} (${assignment.dia})`;
   };
 
-  const formatAssignments = (assignments: Asignacion[]) => {
-    const datedAssignments = assignments
-      .map((assignment) => {
-        const week = weekById.get(assignment.semana);
-        if (!week) {
-          return null;
-        }
+  const formatFullWeek = (week: Semana | undefined): string => {
+    if (!week) {
+      return "Sin días";
+    }
 
-        return {
-          dia: assignment.dia,
-          date: formatAssignmentDate(assignment, week),
-        };
-      })
-      .filter((entry): entry is { dia: Asignacion["dia"]; date: Date } => Boolean(entry));
+    const allDates = dayOrder.map((_, index) =>
+      addUtcDays(parseIsoDate(week.fecha_inicio_semana), index),
+    );
 
-    const dates = datedAssignments.map((entry) => entry.date);
-
-    return `${formatSummaryDates(dates)} (${formatDayRangesByDate(datedAssignments)})`;
+    return `${formatSummaryDates(allDates)} (${dayOrder[0]}-${dayOrder[dayOrder.length - 1]})`;
   };
 
   if (item.tipo === "semana") {
-    const originWeek = weekById.get(item.asignacion_origen.semana);
-    const destinationWeek = item.asignacion_destino
+    const origenWeek = weekById.get(item.asignacion_origen.semana);
+    const destinoWeek = item.asignacion_destino
       ? weekById.get(item.asignacion_destino.semana)
-      : null;
-    const fullWeekDayRange = `${dayOrder[0]}-${dayOrder[dayOrder.length - 1]}`;
+      : undefined;
 
     return {
-      origenLabel: originWeek
-        ? `${formatSummaryDates(
-            Array.from({ length: dayOrder.length }, (_, index) =>
-              addUtcDays(parseIsoDate(originWeek.fecha_inicio_semana), index),
-            ),
-          )} (${fullWeekDayRange})`
-        : "Semana completa",
-      destinoLabel:
-        item.modo_compensacion === "inmediata"
-          ? destinationWeek
-            ? `${formatSummaryDates(
-                Array.from({ length: dayOrder.length }, (_, index) =>
-                  addUtcDays(parseIsoDate(destinationWeek.fecha_inicio_semana), index),
-                ),
-              )} (${fullWeekDayRange})`
-            : "Semana completa"
-          : "No aplica (bolsa)",
+      origenLabel: formatFullWeek(origenWeek),
+      destinoLabel: item.modo_compensacion === "inmediata" ? formatFullWeek(destinoWeek) : "Sin días",
     };
   }
 
   return {
-    origenLabel: originAssignments.length > 0 ? formatAssignments(originAssignments) : "Sin dias",
-    destinoLabel:
-      item.modo_compensacion === "inmediata"
-        ? destinationAssignments.length > 0
-          ? formatAssignments(destinationAssignments)
-          : "Sin dias"
-        : "No aplica (bolsa)",
+    origenLabel: formatOneAssignment(item.asignacion_origen),
+    destinoLabel: item.modo_compensacion === "inmediata"
+      ? formatOneAssignment(item.asignacion_destino)
+      : "Sin días",
+  };
+};
+
+const resolveRequestFlowDays = (
+  item: SolicitudIntercambio,
+  currentUserId?: string,
+): { entregaDays: number; cambioDays: number } => {
+  const estimatedDays = Number.isFinite(item.dias_estimados)
+    ? Math.max(0, Math.round(item.dias_estimados))
+    : 0;
+
+  const originDays = item.tipo === "semana"
+    ? (estimatedDays > 0 ? estimatedDays : dayOrder.length)
+    : 1;
+
+  const destinationDays = item.modo_compensacion === "inmediata"
+    ? (item.tipo === "semana"
+        ? (estimatedDays > 0 ? estimatedDays : originDays)
+        : (item.asignacion_destino ? 1 : 0))
+    : 0;
+
+  const isCurrentUserOrigin = currentUserId
+    ? item.asignacion_origen.usuario === currentUserId
+    : true;
+
+  return {
+    entregaDays: isCurrentUserOrigin ? originDays : destinationDays,
+    cambioDays: isCurrentUserOrigin ? destinationDays : originDays,
   };
 };
 
@@ -482,32 +386,17 @@ export const ExchangesPage = () => {
     [intercambios.enviadas, optimisticStatusById],
   );
 
-  const groupedReceived = useMemo(() => groupRequests(receivedRequests), [receivedRequests]);
-  const groupedSent = useMemo(() => groupRequests(sentRequests), [sentRequests]);
   const receivedCardIdByRequestId = useMemo(() => {
     const map = new Map<string, string>();
 
-    groupedReceived.singles.forEach((item) => {
+    receivedRequests.forEach((item) => {
       map.set(item.id, buildRequestCardDomId(item.id));
     });
 
-    groupedReceived.groups.forEach((group) => {
-      const groupCardId = buildRequestCardDomId(`group-${group.groupId}`);
-      group.items.forEach((item) => {
-        map.set(item.id, groupCardId);
-      });
-    });
-
     return map;
-  }, [groupedReceived]);
-  const receivedDisplayItems = useMemo(
-    () => buildRequestDisplayItems(groupedReceived),
-    [groupedReceived],
-  );
-  const sentDisplayItems = useMemo(
-    () => buildRequestDisplayItems(groupedSent),
-    [groupedSent],
-  );
+  }, [receivedRequests]);
+  const receivedDisplayItems = receivedRequests;
+  const sentDisplayItems = sentRequests;
   const receivedCount = receivedRequests.length;
   const sentCount = sentRequests.length;
   const isBolsaMode = form.modo_compensacion === "bolsa";
@@ -523,6 +412,18 @@ export const ExchangesPage = () => {
   const [selectedExchangeTab, setSelectedExchangeTab] = useState<ExchangeSection>("recibidas");
   const [newRequestOpen, setNewRequestOpen] = useState(false);
   const [selectedSummary, setSelectedSummary] = useState<"owed" | "debt" | null>(null);
+  const [expandedRequestIds, setExpandedRequestIds] = useState<Set<string>>(new Set());
+  const toggleExpandedRequest = useCallback((id: string) => {
+    setExpandedRequestIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
   const [showSubmitTip, setShowSubmitTip] = useState(true);
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
 
@@ -1484,13 +1385,9 @@ export const ExchangesPage = () => {
   const renderRequestItem = (
     item: SolicitudIntercambio,
     section: ExchangeSection,
-    groupedItems = 1,
-    keyOverride?: string,
-    daySummary?: RequestDaySummary,
-    domId?: string,
+    isExpanded: boolean,
   ) => {
     const cleanMotivo = stripGroupToken(item.motivo);
-    const detailDays = daySummary ?? buildRequestDaySummary(item, undefined, weeks);
     const isAccepting = requestActionLoading[item.id] === "accept";
     const isRejecting = requestActionLoading[item.id] === "reject";
     const isTransitioning = isAccepting || isRejecting;
@@ -1505,26 +1402,25 @@ export const ExchangesPage = () => {
     const cardClass = isTransitioning
       ? "border-zinc-400 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-900/80"
       : requestCardClass[item.estado];
-    const sectionHighlight =
-      section === "recibidas"
-        ? "bg-zinc-100 dark:bg-zinc-900/80"
-        : "bg-zinc-100 dark:bg-zinc-900/80";
     const counterpartName = section === "recibidas" ? item.solicitante.nombre : item.receptor.nombre;
-    const isUserOrigin = item.asignacion_origen.usuario === user?.id;
-    const entregaLabel = isUserOrigin ? detailDays.origenLabel : detailDays.destinoLabel;
-    const cambioLabel = isUserOrigin ? detailDays.destinoLabel : detailDays.origenLabel;
-    const scopeLabel = item.tipo === "semana" ? "Semana completa" : `${groupedItems} dia(s)`;
-    const compensationLabel = item.modo_compensacion === "inmediata" ? "Inmediata" : "Bolsa";
+    const isCurrentUserOrigin = user?.id
+      ? item.asignacion_origen.usuario === user.id
+      : true;
+    const daySummary = buildRequestDaySummary(item, weeks);
+    const entregaDetailLabel = isCurrentUserOrigin ? daySummary.origenLabel : daySummary.destinoLabel;
+    const cambioDetailLabel = isCurrentUserOrigin ? daySummary.destinoLabel : daySummary.origenLabel;
+    const { entregaDays, cambioDays } = resolveRequestFlowDays(item, user?.id);
+    const entregaHeaderLabel = entregaDays > 0 ? `ENTREGA (${entregaDays})` : "ENTREGA";
+    const cambioHeaderLabel = cambioDays > 0 ? `A CAMBIO (${cambioDays})` : "A CAMBIO";
     const createdLabel = item.fecha_creacion.slice(0, 10);
     const counterpartId = section === "recibidas" ? item.solicitante.id : item.receptor.id;
     const baseBalance = activeNettedByUser.get(counterpartId)
       ?? requestNettedByUser.get(counterpartId)
       ?? { name: counterpartName, me_deben: 0, debo: 0 };
     const currentNet = baseBalance.me_deben - baseBalance.debo;
-    const pendingDaysEstimate =
-      item.tipo === "dia"
-        ? Math.max(groupedItems, item.dias_estimados)
-        : item.dias_estimados;
+    const pendingDaysEstimate = item.tipo === "semana"
+      ? Math.max(dayOrder.length, item.dias_estimados)
+      : Math.max(1, item.dias_estimados);
     const acceptDelta = item.estado === "pendiente"
       ? getAcceptedNetDeltaForCurrentUser(item, pendingDaysEstimate)
       : 0;
@@ -1533,7 +1429,7 @@ export const ExchangesPage = () => {
       me_deben: Math.max(projectedNet, 0),
       debo: Math.max(-projectedNet, 0),
     };
-    const cardDomId = domId ?? buildRequestCardDomId(item.id);
+    const cardDomId = buildRequestCardDomId(item.id);
     const isHighlighted = highlightedCardId === cardDomId;
     const statusIcon = isTransitioning
       ? <span className="h-3 w-3 animate-spin rounded-full border border-current/40 border-t-current" />
@@ -1562,118 +1458,178 @@ export const ExchangesPage = () => {
                 </svg>
               );
 
+    const dayLabel = (days: number) => `${days} día${days === 1 ? "" : "s"}`;
+    const showUnifiedSwapPill = item.modo_compensacion === "inmediata"
+      && entregaDays > 0
+      && cambioDays > 0
+      && entregaDays === cambioDays;
+
     return (
       <div
         id={cardDomId}
-        key={keyOverride ?? item.id}
-        className={`rounded-xl border p-4 shadow-sm transition hover:shadow-md ${cardClass} ${sectionHighlight} ${isHighlighted ? "request-focus-glow" : ""}`}
+        key={item.id}
+        className={`rounded-xl border p-3 shadow-sm transition hover:shadow-md ${cardClass} ${isHighlighted ? "request-focus-glow" : ""}`}
       >
-        <div className="flex items-center justify-between gap-2 text-[11px]">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <span className="glass-badge max-w-[8.25rem] truncate rounded-full px-2 py-0.5 text-[9px] font-semibold">{scopeLabel}</span>
-            <span className="glass-badge rounded-full px-2 py-0.5 text-[9px] font-semibold">{compensationLabel}</span>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] text-zinc-500 dark:text-zinc-400">
-            <span className="inline-flex items-center gap-1">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 2v3M14 2v3M3 8h14" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 5h12a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Z" />
-              </svg>
-              <span>{createdLabel}</span>
-            </span>
-            <span className={`inline-flex items-center ml-1 gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusPillClass}`}>
+        <div className="flex items-center justify-between gap-2">
+          {isExpanded ? (
+            <div className="min-w-0 flex-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 2v3M14 2v3M3 8h14" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 5h12a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Z" />
+                </svg>
+                <span>{createdLabel}</span>
+              </span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => toggleExpandedRequest(item.id)}
+              className="min-w-0 flex-1 text-left"
+              aria-expanded={isExpanded}
+            >
+              <div className="flex items-center gap-2 overflow-hidden">
+                {showUnifiedSwapPill ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-teal-300 bg-teal-100 px-2.5 py-1 text-[11px] font-semibold text-teal-800 dark:border-teal-500/60 dark:bg-teal-900/35 dark:text-teal-100">
+                    <span>↑↓</span>
+                    <span>{dayLabel(entregaDays)}</span>
+                  </span>
+                ) : (
+                  <>
+                    {entregaDays > 0 && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-cyan-300 bg-cyan-100 px-2.5 py-1 text-[11px] font-semibold text-cyan-800 dark:border-cyan-500/60 dark:bg-cyan-900/35 dark:text-cyan-100">
+                        <span>↑</span>
+                        <span>{dayLabel(entregaDays)}</span>
+                      </span>
+                    )}
+                    {cambioDays > 0 && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/35 dark:text-amber-100">
+                        <span>↓</span>
+                        <span>{dayLabel(cambioDays)}</span>
+                      </span>
+                    )}
+                    {entregaDays === 0 && cambioDays === 0 && (
+                      <span className="inline-flex shrink-0 items-center rounded-full border border-[var(--color-surface-border)] bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[var(--primary-200)]">
+                        Sin días
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            </button>
+          )}
+
+          <div className="ml-2 flex shrink-0 items-center gap-2">
+            {!isExpanded && (
+              <span className="max-w-[9rem] truncate whitespace-nowrap rounded-full border border-[var(--color-surface-border)] bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-[var(--primary-50)]">
+                {counterpartName}
+              </span>
+            )}
+            <span
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-[11px] ${statusPillClass}`}
+              title={pillLabel}
+            >
               {statusIcon}
-              <span>{pillLabel}</span>
             </span>
+            <button
+              type="button"
+              onClick={() => toggleExpandedRequest(item.id)}
+              className="inline-flex h-8 min-w-10 items-center justify-center rounded-full border border-[var(--color-surface-border)] px-3 text-[var(--primary-300)]/85 transition hover:bg-white/10 hover:text-white"
+              aria-label={isExpanded ? "Reducir detalle" : "Expandir detalle"}
+              aria-expanded={isExpanded}
+            >
+              <svg
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? "rotate-180" : "rotate-0"}`}
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.7}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div
+          className={`overflow-hidden transition-[max-height,opacity,transform,margin] duration-300 ease-out ${
+            isExpanded
+              ? "mt-3 max-h-[48rem] opacity-100 translate-y-0"
+              : "mt-0 max-h-0 opacity-0 -translate-y-1 pointer-events-none"
+          }`}
+        >
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-cyan-200 bg-cyan-100/60 p-3 dark:border-cyan-500/40 dark:bg-cyan-950/30">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">
                   <span>↑</span>
-                  <span>ENTREGA</span>
+                  <span>{entregaHeaderLabel}</span>
                 </div>
                 <span className="rounded-full border border-cyan-300 bg-cyan-100 px-2 py-0.5 text-[10px] font-semibold text-cyan-800 dark:border-cyan-500/60 dark:bg-cyan-900/35 dark:text-cyan-100">
                   TÚ
                 </span>
               </div>
-              <p className="mt-2 text-[13px] font-semibold text-[color:var(--ink)] leading-tight">{entregaLabel}</p>
+              <p className="mt-2 text-[13px] font-semibold text-[color:var(--ink)] leading-tight">{entregaDetailLabel}</p>
             </div>
+
             <div className="rounded-2xl border border-amber-200 bg-amber-100/60 p-3 dark:border-amber-500/40 dark:bg-amber-950/30">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
                   <span>↓</span>
-                  <span>A CAMBIO</span>
+                  <span>{cambioHeaderLabel}</span>
                 </div>
                 <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/35 dark:text-amber-100">
                   {counterpartName}
                 </span>
               </div>
-              <p className="mt-2 text-[13px] font-semibold text-[color:var(--ink)] leading-tight">{cambioLabel}</p>
+              <p className="mt-2 text-[13px] font-semibold text-[color:var(--ink)] leading-tight">{cambioDetailLabel}</p>
             </div>
           </div>
-        {cleanMotivo && (
-          <p className="mt-3 text-[12px] text-[color:var(--ink-soft)]">Motivo: {cleanMotivo}</p>
-        )}
 
-        {item.estado === "pendiente" && section === "recibidas" && (
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => void handleRequestAction(item.id, "accept")}
-                disabled={isTransitioning || submitBusy}
-                className="glass-button glass-button-success inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isAccepting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-                {isAccepting ? "Aceptando..." : "Aceptar"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleRequestAction(item.id, "reject")}
-                disabled={isTransitioning || submitBusy}
-                className="glass-button glass-button-danger inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isRejecting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" />}
-                {isRejecting ? "Rechazando..." : "Rechazar"}
-              </button>
-            </div>
+          {cleanMotivo && (
+            <p className="mt-3 text-[12px] text-[color:var(--ink-soft)]">Motivo: {cleanMotivo}</p>
+          )}
 
-            <div className="glass-soft rounded-lg border border-[var(--color-surface-border)] px-2.5 py-2 text-[10px] sm:ml-auto sm:max-w-[16.5rem]">
-              <p className="mt-1 text-[var(--primary-200)]">
-                <span className="font-semibold text-[var(--primary-50)]">
-                  {formatCurrentCompactSummary(counterpartName, baseBalance.me_deben, baseBalance.debo)}
-                </span>
-                {", Si aceptas "}
-                <span className="font-semibold text-[var(--primary-50)]">
-                  {formatProjectedCompactSummary(projectedBalance.me_deben, projectedBalance.debo)}
-                </span>
-                .
-              </p>
+          {item.estado === "pendiente" && section === "recibidas" && (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleRequestAction(item.id, "accept")}
+                  disabled={isTransitioning || submitBusy}
+                  className="glass-button glass-button-success inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isAccepting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+                  {isAccepting ? "Aceptando..." : "Aceptar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleRequestAction(item.id, "reject")}
+                  disabled={isTransitioning || submitBusy}
+                  className="glass-button glass-button-danger inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isRejecting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" />}
+                  {isRejecting ? "Rechazando..." : "Rechazar"}
+                </button>
+              </div>
+
+              <div className="glass-soft rounded-lg border border-[var(--color-surface-border)] px-2.5 py-2 text-[10px] sm:ml-auto sm:max-w-[16.5rem]">
+                <p className="mt-1 text-[var(--primary-200)]">
+                  <span className="font-semibold text-[var(--primary-50)]">
+                    {formatCurrentCompactSummary(counterpartName, baseBalance.me_deben, baseBalance.debo)}
+                  </span>
+                  {", Si aceptas "}
+                  <span className="font-semibold text-[var(--primary-50)]">
+                    {formatProjectedCompactSummary(projectedBalance.me_deben, projectedBalance.debo)}
+                  </span>
+                  .
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    );
-  };
-
-  const renderGroup = (group: RequestGroup, section: ExchangeSection) => {
-    const representative = group.items[0];
-    if (!representative) {
-      return null;
-    }
-
-    const daySummary = buildRequestDaySummary(representative, group.items, weeks);
-
-    return renderRequestItem(
-      representative,
-      section,
-      group.items.length,
-      `group-${group.groupId}`,
-      daySummary,
-      buildRequestCardDomId(`group-${group.groupId}`),
     );
   };
 
@@ -1756,7 +1712,7 @@ export const ExchangesPage = () => {
                         : "text-[var(--primary-300)] hover:text-white"
                     }`}
                   >
-                    {option === "dia" ? "Dia" : "Semana"}
+                    {option === "dia" ? "Día" : "Semana"}
                   </button>
                 ))}
               </div>
@@ -2074,22 +2030,14 @@ export const ExchangesPage = () => {
               {receivedDisplayItems.length === 0 && (
                 <p className="text-sm text-[color:var(--ink-soft)]">No tienes solicitudes recibidas.</p>
               )}
-              {receivedDisplayItems.map((entry) =>
-                entry.kind === "group"
-                  ? renderGroup(entry.group, "recibidas")
-                  : renderRequestItem(entry.item, "recibidas"),
-              )}
+              {receivedDisplayItems.map((item) => renderRequestItem(item, "recibidas", expandedRequestIds.has(item.id)))}
             </>
           ) : (
             <>
               {sentDisplayItems.length === 0 && (
                 <p className="text-sm text-[color:var(--ink-soft)]">No has enviado solicitudes.</p>
               )}
-              {sentDisplayItems.map((entry) =>
-                entry.kind === "group"
-                  ? renderGroup(entry.group, "enviadas")
-                  : renderRequestItem(entry.item, "enviadas"),
-              )}
+              {sentDisplayItems.map((item) => renderRequestItem(item, "enviadas", expandedRequestIds.has(item.id)))}
             </>
           )}
         </div>
