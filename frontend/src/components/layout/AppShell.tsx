@@ -9,7 +9,6 @@ import { useAppData } from "../../context/AppDataContext";
 const commonLinks = [
   { to: "/calendario", label: "calendario" },
   { to: "/intercambios", label: "Intercambios" },
-  { to: "/bolsa", label: "Bolsa de dias" },
   { to: "/calendar", label: "Google Calendar" },
 ];
 
@@ -365,7 +364,7 @@ export const AppShell = () => {
 
             {!isMobileHeader ? (
               <div className="ml-auto flex items-center gap-2 sm:gap-3">
-                <div className="flex items-center gap-1.5 rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-2 py-1">
+                <div className="flex h-9 min-w-[6.5rem] items-center justify-center gap-2 rounded-full border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 text-[var(--primary-300)]">
                   <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[var(--primary-400)]">Bolsa</span>
                   <span
                     className={cn(
@@ -383,7 +382,7 @@ export const AppShell = () => {
                     onClick={() => {
                       setNotificationsOpen((current) => !current);
                     }}
-                    className="relative flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-300)] transition hover:border-[var(--primary-500)] hover:text-white"
+                    className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-300)] transition-colors duration-200 hover:border-[var(--primary-500)] hover:text-white"
                     title="Notificaciones de solicitudes pendientes"
                     aria-label="Abrir notificaciones"
                   >
@@ -399,18 +398,18 @@ export const AppShell = () => {
                   </button>
                 </div>
 
-                <div className="hidden text-right sm:block">
+                <div className="hidden min-w-0 text-right sm:block">
                   <span className="block text-sm font-semibold leading-none text-white">{user?.nombre}</span>
                   <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]">{user?.rol}</p>
                 </div>
 
-                <div className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/10 text-sm font-black text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/10 text-sm font-black text-white">
                   {user?.nombre?.charAt(0).toUpperCase()}
                 </div>
 
                 <button
                   onClick={logout}
-                  className="p-1.5 text-[var(--primary-400)] transition-colors hover:text-white"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-300)] transition-colors duration-200 hover:border-[var(--primary-500)] hover:text-white"
                   title="Cerrar sesión"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -425,7 +424,7 @@ export const AppShell = () => {
               </div>
             ) : (
               <div className="ml-auto flex items-center gap-2">
-                <div className="flex items-center gap-1.5 rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-2 py-1">
+                <div className="flex h-9 min-w-[6.5rem] items-center justify-center gap-2 rounded-full border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 text-[var(--primary-300)]">
                   <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[var(--primary-400)]">Bolsa</span>
                   <span
                     className={cn(
@@ -443,7 +442,7 @@ export const AppShell = () => {
                     onClick={() => {
                       setNotificationsOpen((current) => !current);
                     }}
-                    className="relative flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-300)] transition hover:border-[var(--primary-500)] hover:text-white"
+                    className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-300)] transition-colors duration-200 hover:border-[var(--primary-500)] hover:text-white"
                     title="Notificaciones de solicitudes pendientes"
                     aria-label="Abrir notificaciones"
                   >
@@ -519,17 +518,19 @@ export const AppShell = () => {
             <button
               type="button"
               onClick={() => setNotificationsOpen(false)}
-              className="rounded-md border border-[var(--color-surface-border)] bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--primary-300)] transition hover:bg-white/15 hover:text-white"
+              className="rounded-full p-2 text-[var(--primary-300)] transition hover:text-white"
+              aria-label="Cerrar notificaciones"
             >
-              Cerrar
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           </div>
 
           <div className="mt-3 max-h-[52vh] space-y-2 overflow-y-auto pr-1">
             {pendingNotificationItems.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[var(--color-surface-border)] bg-white/5 px-4 py-5 text-center backdrop-blur-sm">
-                <p className="text-sm font-semibold text-white">Todo al día</p>
-              </div>
+              <p className="mt-3 text-sm font-semibold text-white">Todo al día</p>
             ) : (
               pendingNotificationItems.map((entry) => {
                 const item = entry.request;
@@ -586,13 +587,13 @@ export const AppShell = () => {
             aria-label="Cerrar menú"
             onClick={() => setMobileMenuOpen(false)}
             className={cn(
-              "absolute inset-0 bg-black/10 backdrop-blur-sm transition-opacity duration-300 pointer-events-auto",
+              "absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 pointer-events-auto",
               mobileMenuOpen ? "opacity-100" : "opacity-0",
             )}
           />
           <div
             className={cn(
-              "absolute inset-y-0 right-0 z-10 flex h-full w-[min(84vw,28rem)] max-w-[26rem] flex-col border-l border-[var(--color-surface-border)] bg-grey-900/95 p-4 shadow-2xl transition-transform duration-300 ease-out backdrop-blur-xl",
+              "absolute inset-y-0 right-0 z-10 flex h-full w-[min(84vw,28rem)] max-w-[26rem] flex-col border-l border-[var(--color-surface-border)] bg-grey-900/98 p-4 shadow-2xl transition-transform duration-300 ease-out backdrop-blur-xl",
               mobileMenuOpen ? "translate-x-0" : "translate-x-full",
             )}
           >
@@ -601,7 +602,7 @@ export const AppShell = () => {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="rounded-md border border-[var(--color-surface-border)] bg-white/10 p-2 text-[var(--primary-300)] transition hover:bg-white/15 hover:text-white"
+                className="rounded-full p-2 text-[var(--primary-300)] transition hover:text-white"
                 aria-label="Cerrar menú"
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

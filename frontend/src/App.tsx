@@ -4,7 +4,6 @@ import { ProtectedRoute } from "./components/common/ProtectedRoute";
 import { AppShell } from "./components/layout/AppShell";
 import { AppDataProvider } from "./context/AppDataContext";
 import { useAuth } from "./context/AuthContext";
-import { BolsaPage } from "./pages/BolsaPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { ExchangesPage } from "./pages/ExchangesPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -34,7 +33,6 @@ function App() {
           <Route path="/asignaciones" element={<Navigate to="/calendario" replace />} />
           <Route path="/mis-tardes" element={<Navigate to="/calendario" replace />} />
           <Route path="/intercambios" element={<ExchangesPage />} />
-          <Route path="/bolsa" element={<BolsaPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
         </Route>
       </Route>

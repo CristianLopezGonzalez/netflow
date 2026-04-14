@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
+import { useNavigate } from "react-router-dom";
 
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
@@ -46,6 +48,16 @@ const formatDisplayName = (name: string): string => {
 
   const parts = trimmed.split(/\s+/);
   return parts.slice(0, 2).join(" ");
+};
+
+type SelectedCalendarGroup = {
+  ownerName: string;
+  ownerId: string;
+  isMine: boolean;
+  dateLabel: string;
+  dayCount: number;
+  assignmentIds: string[];
+  weekId?: string;
 };
 
 const getDiaSemanaFromDate = (date: Date): DiaSemana | null => {
@@ -236,6 +248,7 @@ const collectUniqueEmployeeIds = (
 };
 
 export const PlanningCalendarPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { weeks, selectedWeekId, setSelectedWeekId, weekAssignments, reloadWeekDetail } = useAppData();
 
@@ -246,6 +259,49 @@ export const PlanningCalendarPage = () => {
   const [selectedOverviewMonthIndex, setSelectedOverviewMonthIndex] = useState(() => new Date().getMonth());
   const [viewMode, setViewMode] = useState<"semana" | "mes">("semana");
   const [isCompactWeek, setIsCompactWeek] = useState(false);
+  const [selectedCalendarGroup, setSelectedCalendarGroup] = useState<SelectedCalendarGroup | null>(null);
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const closeGroupModalTimeoutRef = useRef<number | null>(null);
+
+  const closeGroupModal = useCallback(() => {
+    setGroupModalOpen(false);
+    if (closeGroupModalTimeoutRef.current !== null) {
+      window.clearTimeout(closeGroupModalTimeoutRef.current);
+    }
+
+    closeGroupModalTimeoutRef.current = window.setTimeout(() => {
+      setSelectedCalendarGroup(null);
+      closeGroupModalTimeoutRef.current = null;
+    }, 300);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (closeGroupModalTimeoutRef.current !== null) {
+        window.clearTimeout(closeGroupModalTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setSelectedCalendarGroup(null);
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (closeGroupModalTimeoutRef.current !== null) {
+      window.clearTimeout(closeGroupModalTimeoutRef.current);
+      closeGroupModalTimeoutRef.current = null;
+    }
+
+    if (!selectedCalendarGroup) {
+      setGroupModalOpen(false);
+      return;
+    }
+
+    setGroupModalOpen(false);
+    const frameId = window.requestAnimationFrame(() => setGroupModalOpen(true));
+    return () => window.cancelAnimationFrame(frameId);
+  }, [selectedCalendarGroup]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 640px)");
@@ -273,6 +329,66 @@ export const PlanningCalendarPage = () => {
   useEffect(() => {
     void loadRotationSummary();
   }, [loadRotationSummary, weeks]);
+
+  const buildSelectedCalendarGroup = useCallback(
+    (group: {
+      ownerDisplayName: string;
+      ownerId: string;
+      isMine: boolean;
+      rotationItem?: SemanaRotacionResumen;
+      startCell: Date | null;
+      endCell: Date | null;
+      span: number;
+    }): SelectedCalendarGroup | null => {
+      if (!group.rotationItem || !group.startCell || !group.endCell) {
+        return null;
+      }
+
+      const formatLabel = (date: Date) =>
+        date.toLocaleDateString("es-ES", {
+          day: "numeric",
+          month: "short",
+          timeZone: "UTC",
+        });
+
+      const startDate = group.startCell;
+      const endDate = group.endCell;
+      const dayCount = group.span;
+      const dateLabel = dayCount > 1
+        ? `${formatLabel(startDate)} - ${formatLabel(endDate)}`
+        : `${formatLabel(startDate)}`;
+
+      const selectedDays = new Set<DiaSemana>([]);
+      let cursor = startDate;
+      while (cursor.getTime() <= endDate.getTime()) {
+        const dayName = getDiaSemanaFromDate(cursor);
+        if (dayName) {
+          selectedDays.add(dayName);
+        }
+        cursor = addUtcDays(cursor, 1);
+      }
+
+      const assignmentIds = weekAssignments
+        .filter(
+          (assignment) =>
+            assignment.semana === group.rotationItem?.semana_id
+            && assignment.usuario === group.ownerId
+            && selectedDays.has(assignment.dia),
+        )
+        .map((assignment) => assignment.id);
+
+      return {
+        ownerName: group.ownerDisplayName,
+        ownerId: group.ownerId,
+        isMine: group.isMine,
+        dateLabel,
+        dayCount,
+        assignmentIds,
+        weekId: group.rotationItem.semana_id,
+      };
+    },
+    [weekAssignments],
+  );
 
   const weeksOrderedAsc = useMemo(
     () =>
@@ -335,6 +451,36 @@ export const PlanningCalendarPage = () => {
     [weeks, selectedWeekId],
   );
 
+  const handleSelectCalendarGroup = useCallback(
+    (group: {
+      ownerDisplayName: string;
+      ownerId: string;
+      isMine: boolean;
+      rotationItem?: SemanaRotacionResumen;
+      startCell: Date | null;
+      endCell: Date | null;
+      span: number;
+    }) => {
+      const selected = buildSelectedCalendarGroup(group);
+      if (!selected) {
+        return;
+      }
+
+      if (closeGroupModalTimeoutRef.current !== null) {
+        window.clearTimeout(closeGroupModalTimeoutRef.current);
+        closeGroupModalTimeoutRef.current = null;
+      }
+
+      setSelectedCalendarGroup(selected);
+
+      if (group.rotationItem) {
+        setSelectedWeekId(group.rotationItem.semana_id);
+        void reloadWeekDetail(group.rotationItem.semana_id);
+      }
+    },
+    [buildSelectedCalendarGroup, reloadWeekDetail, setSelectedWeekId],
+  );
+
   const rotationByWeekId = useMemo(
     () => new Map(rotationSummary.map((item) => [item.semana_id, item])),
     [rotationSummary],
@@ -342,6 +488,23 @@ export const PlanningCalendarPage = () => {
 
   const selectedWeekSummary = selectedWeekId ? rotationByWeekId.get(selectedWeekId) ?? null : null;
   const nextWeekSummary = nextWeek ? rotationByWeekId.get(nextWeek.id) ?? null : null;
+
+  const nextWeekEmployees = useMemo(() => {
+    if (!nextWeekSummary) {
+      return null;
+    }
+
+    const names = nextWeekSummary.empleados
+      .map((item) => item.usuario_nombre?.trim() ?? "")
+      .filter(Boolean)
+      .map(formatDisplayName);
+
+    if (names.length === 0) {
+      return nextWeekSummary.principal_usuario_nombre ? formatDisplayName(nextWeekSummary.principal_usuario_nombre) : null;
+    }
+
+    return names.join(", ");
+  }, [nextWeekSummary]);
 
   const employeeToneById = useMemo(() => {
     const employeeIds = collectUniqueEmployeeIds(rotationSummary, weekAssignments, user?.id);
@@ -743,9 +906,10 @@ export const PlanningCalendarPage = () => {
                 type="button"
                 onClick={viewMode === "semana" ? goToPreviousWeek : goToPreviousMonth}
                 disabled={viewMode === "semana" ? !canGoPreviousWeek : !canGoPreviousMonth}
-                className="glass-button h-9 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
+                className="inline-flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 text-lg font-semibold text-[var(--primary-300)] transition-colors duration-200 hover:border-[var(--primary-500)] hover:text-white disabled:opacity-30"
+                aria-label="Semana anterior"
               >
-                ←
+                <span aria-hidden>{`<`}</span>
               </button>
               <div className="w-full min-w-0 sm:min-w-[14rem] sm:max-w-[22rem]">
                 <CustomSelect
@@ -780,9 +944,10 @@ export const PlanningCalendarPage = () => {
                 type="button"
                 onClick={viewMode === "semana" ? goToNextWeek : goToNextMonth}
                 disabled={viewMode === "semana" ? !canGoNextWeek : !canGoNextMonth}
-                className="glass-button h-9 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
+                className="inline-flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 text-lg font-semibold text-[var(--primary-300)] transition-colors duration-200 hover:border-[var(--primary-500)] hover:text-white disabled:opacity-30"
+                aria-label="Semana siguiente"
               >
-                →
+                <span aria-hidden>{`>`}</span>
               </button>
             </div>
           </div>
@@ -806,7 +971,7 @@ export const PlanningCalendarPage = () => {
                 {visibleWeekdayHeader.map((label) => (
                   <div
                     key={`week-header-${label}`}
-                    className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]"
+                    className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-bright)] px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]"
                   >
                     {label}
                   </div>
@@ -820,8 +985,8 @@ export const PlanningCalendarPage = () => {
                     const groupEndDate = group.endCell.getUTCDate();
                     const dateLabel = group.span > 1 ? `${groupStartDate} - ${groupEndDate}` : `${groupStartDate}`;
                     const todayRingClasses = group.isToday
-                      ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
-                      : "hover:scale-[1.01] hover:shadow-lg";
+                      ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20"
+                      : "hover:shadow-lg";
 
                     if (group.isEmpty) {
                       const weekendEmptyClasses = group.startCell.getUTCDay() === 0 || group.startCell.getUTCDay() === 6
@@ -850,12 +1015,7 @@ export const PlanningCalendarPage = () => {
                         key={`week-group-${groupIndex}`}
                         type="button"
                         style={spanStyle}
-                        onClick={() => {
-                          if (group.rotationItem) {
-                            setSelectedWeekId(group.rotationItem.semana_id);
-                            void reloadWeekDetail(group.rotationItem.semana_id);
-                          }
-                        }}
+                        onClick={() => handleSelectCalendarGroup(group)}
                         className={`min-h-24 w-full rounded-xl border p-2 text-left transition-all ${baseClasses} ${todayRingClasses}`}
                       >
                         <div className="flex justify-between items-start gap-2">
@@ -881,6 +1041,7 @@ export const PlanningCalendarPage = () => {
                     );
                   })}
                 </div>
+
               </div>
             </div>
           )}
@@ -888,7 +1049,9 @@ export const PlanningCalendarPage = () => {
           {viewMode === "semana" && (
             <article className="panel p-3">
               <p className="stat-label">Semana siguiente</p>
-              <p className="stat-value mt-1">{nextWeekSummary?.principal_usuario_nombre ?? "Sin siguiente"}</p>
+              <p className="stat-value mt-1">
+                {nextWeekEmployees ?? "Sin siguiente"}
+              </p>
             </article>
         )}
 
@@ -913,7 +1076,7 @@ export const PlanningCalendarPage = () => {
               {visibleWeekdayHeader.map((label) => (
                 <div
                   key={`${activeOverviewMonthKey}-${label}`}
-                  className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]"
+                  className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-bright)] px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]"
                 >
                   {label}
                 </div>
@@ -927,8 +1090,8 @@ export const PlanningCalendarPage = () => {
                     const endDate = group.endCell?.getUTCDate() ?? "";
                     const dateLabel = group.span > 1 ? `${startDate} - ${endDate}` : `${startDate}`;
                     const todayRingClasses = group.isToday
-                      ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
-                      : "hover:scale-[1.01] hover:shadow-lg";
+                      ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20"
+                      : "hover:shadow-lg";
 
                     if (group.isPlaceholder) {
                       return (
@@ -967,12 +1130,7 @@ export const PlanningCalendarPage = () => {
                         key={`month-group-${groupIndex}`}
                         type="button"
                         style={spanStyle}
-                        onClick={() => {
-                          if (group.rotationItem) {
-                            setSelectedWeekId(group.rotationItem.semana_id);
-                            void reloadWeekDetail(group.rotationItem.semana_id);
-                          }
-                        }}
+                        onClick={() => handleSelectCalendarGroup(group)}
                         className={`min-h-24 w-full rounded-xl border p-2 text-left transition-all ${baseClasses} ${todayRingClasses}`}
                       >
                         <div className="flex justify-between items-start gap-2">
@@ -1003,6 +1161,107 @@ export const PlanningCalendarPage = () => {
           </div>
         )}
       </article>
+      )}
+
+      {selectedCalendarGroup && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[80]">
+          <button
+            type="button"
+            aria-label="Cerrar detalle"
+            onClick={closeGroupModal}
+            className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 pointer-events-auto ${
+              groupModalOpen ? "opacity-100" : "opacity-0"
+            }`}
+          />
+          <div
+            className={
+              `absolute inset-x-0 bottom-0 z-10 mx-auto w-full max-w-[56rem] overflow-y-auto rounded-t-3xl border border-[var(--color-surface-border)] bg-grey-900/98 p-6 shadow-2xl transition-transform duration-300 ease-out backdrop-blur-xl ${
+                groupModalOpen ? "translate-y-0" : "translate-y-full"
+              }`
+            }
+            style={{
+              minHeight: "30vh",
+              maxHeight: "82vh",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={closeGroupModal}
+              className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full p-2 text-[var(--primary-300)] transition hover:text-white"
+              aria-label="Cerrar detalle"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--primary-500)]">Detalle de turno</p>
+                <p className="text-lg font-semibold text-white">
+                  {selectedCalendarGroup.ownerName}
+                  {selectedCalendarGroup.isMine ? " · Tu turno" : ""}
+                </p>
+                <p className="text-sm text-[var(--primary-300)]">{selectedCalendarGroup.dateLabel}</p>
+                <p className="text-xs uppercase tracking-[0.12em] text-[var(--primary-400)]">{selectedCalendarGroup.dayCount} días</p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const { ownerId, isMine, assignmentIds, weekId } = selectedCalendarGroup;
+                    const preset: {
+                      receptor_id?: string;
+                      tipo: "dia" | "semana";
+                      asignacion_origen_id?: string;
+                      asignacion_origen_ids?: string[];
+                      asignacion_destino_id?: string;
+                      asignacion_destino_ids?: string[];
+                      modo_compensacion: "bolsa" | "inmediata";
+                      motivo: string;
+                    } = {
+                      tipo: "dia",
+                      modo_compensacion: "bolsa",
+                      motivo: "",
+                    };
+
+                    if (isMine) {
+                      if (assignmentIds.length === 1) {
+                        preset.asignacion_origen_id = assignmentIds[0];
+                      } else if (assignmentIds.length > 1) {
+                        preset.asignacion_origen_ids = assignmentIds;
+                      }
+                    } else {
+                      preset.receptor_id = ownerId;
+                      if (assignmentIds.length === 1) {
+                        preset.asignacion_destino_id = assignmentIds[0];
+                      } else if (assignmentIds.length > 1) {
+                        preset.asignacion_destino_ids = assignmentIds;
+                      }
+                    }
+
+                    const state = {
+                      openNewRequest: true,
+                      preset,
+                      targetWeekId: weekId,
+                    };
+
+                    setSelectedWeekId(weekId ?? selectedWeekId);
+                    closeGroupModal();
+                    navigate("/intercambios", { state });
+                  }}
+                  className="glass-button inline-flex h-12 items-center justify-center rounded-2xl px-5 text-sm font-semibold"
+                >
+                  Solicitar intercambio
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
     </section>
   );

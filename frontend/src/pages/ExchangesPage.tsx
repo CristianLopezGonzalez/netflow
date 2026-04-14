@@ -106,6 +106,18 @@ type ExchangesNavigationState = {
   focusRequestId?: string;
   focusRequestSection?: ExchangeSection;
   focusAt?: number;
+  openNewRequest?: boolean;
+  preset?: {
+    receptor_id?: string;
+    tipo?: "dia" | "semana";
+    asignacion_origen_id?: string;
+    asignacion_origen_ids?: string[];
+    asignacion_destino_id?: string;
+    asignacion_destino_ids?: string[];
+    modo_compensacion?: "bolsa" | "inmediata";
+    motivo?: string;
+  };
+  targetWeekId?: string;
 };
 
 type RequestDaySummary = {
@@ -513,6 +525,44 @@ export const ExchangesPage = () => {
   const [selectedSummary, setSelectedSummary] = useState<"owed" | "debt" | null>(null);
   const [showSubmitTip, setShowSubmitTip] = useState(true);
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const state = location.state as ExchangesNavigationState | null;
+    if (!state) {
+      return;
+    }
+
+    if (state.targetWeekId) {
+      setSelectedWeekId(state.targetWeekId);
+    }
+
+    if (state.openNewRequest) {
+      setNewRequestOpen(true);
+    }
+
+    if (state.preset) {
+      setForm((current) => ({
+        ...current,
+        ...state.preset,
+      }));
+
+      if (state.preset.asignacion_origen_ids?.length) {
+        setSelectedOriginIds(state.preset.asignacion_origen_ids);
+      } else if (state.preset.asignacion_origen_id) {
+        setSelectedOriginIds([state.preset.asignacion_origen_id]);
+      }
+
+      if (state.preset.asignacion_destino_ids?.length) {
+        setSelectedDestinationIds(state.preset.asignacion_destino_ids);
+      } else if (state.preset.asignacion_destino_id) {
+        setSelectedDestinationIds([state.preset.asignacion_destino_id]);
+      }
+    }
+
+    if (state.openNewRequest || state.preset || state.targetWeekId) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.key, location.pathname, location.state, navigate, setSelectedWeekId]);
 
   const requestBalanceByUser = useMemo(() => {
     const map = new Map<string, { name: string; me_deben: number; debo: number }>();
