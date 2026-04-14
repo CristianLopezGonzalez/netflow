@@ -32,6 +32,9 @@ export const AppShell = () => {
   const notificationsRef = useRef<HTMLDivElement | null>(null);
   const notificationsPanelRef = useRef<HTMLDivElement | null>(null);
   const [notificationsPanelPos, setNotificationsPanelPos] = useState<{ top: number; right: number } | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuVisible, setMobileMenuVisible] = useState(false);
+  const [isMobileHeader, setIsMobileHeader] = useState(false);
 
   const pendingNotificationItems = useMemo(() => {
     const requests = intercambios.recibidas
@@ -90,12 +93,64 @@ export const AppShell = () => {
   const pendingReceivedCount = pendingNotificationItems.length;
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 900px)");
+    const updateMobileHeader = () => setIsMobileHeader(mediaQuery.matches);
+
+    updateMobileHeader();
+    mediaQuery.addEventListener("change", updateMobileHeader);
+    return () => mediaQuery.removeEventListener("change", updateMobileHeader);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileHeader) {
+      setMobileMenuOpen(false);
+    }
+  }, [isMobileHeader]);
+
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      setMobileMenuVisible(true);
+      return;
+    }
+
+    if (!mobileMenuVisible) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setMobileMenuVisible(false), 260);
+    return () => window.clearTimeout(timeout);
+  }, [mobileMenuOpen, mobileMenuVisible]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return;
+    }
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
     if (!notificationsOpen) {
       setNotificationsPanelPos(null);
       return;
     }
 
+    if (isMobileHeader) {
+      setNotificationsPanelPos({ top: 0, right: 0 });
+    }
+
     const updatePanelPosition = () => {
+      if (isMobileHeader) {
+        return;
+      }
+
       if (!notificationsRef.current) {
         return;
       }
@@ -130,15 +185,21 @@ export const AppShell = () => {
 
     document.addEventListener("mousedown", onClickOutside);
     window.addEventListener("keydown", onEscape);
-    window.addEventListener("resize", updatePanelPosition);
-    window.addEventListener("scroll", updatePanelPosition, true);
+    if (!isMobileHeader) {
+      updatePanelPosition();
+      window.addEventListener("resize", updatePanelPosition);
+      window.addEventListener("scroll", updatePanelPosition, true);
+    }
+
     return () => {
       document.removeEventListener("mousedown", onClickOutside);
       window.removeEventListener("keydown", onEscape);
-      window.removeEventListener("resize", updatePanelPosition);
-      window.removeEventListener("scroll", updatePanelPosition, true);
+      if (!isMobileHeader) {
+        window.removeEventListener("resize", updatePanelPosition);
+        window.removeEventListener("scroll", updatePanelPosition, true);
+      }
     };
-  }, [notificationsOpen]);
+  }, [isMobileHeader, notificationsOpen]);
 
   useEffect(() => {
     const pendingIds = new Set(
@@ -262,117 +323,189 @@ export const AppShell = () => {
   return (
     <main className="min-h-screen w-full bg-[#121418]">
       <header className="sticky top-0 z-40 border-b border-[var(--color-surface-border)] bg-grey-900/95 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-2 px-3 py-2 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="h-8 w-8 overflow-hidden rounded-md">
-              <img src="/logo.webp" alt="Logo" className="h-full w-full object-cover" />
-            </div>
-            <p className="hidden text-sm font-black uppercase tracking-widest text-[var(--primary-200)] sm:block">Netflow</p>
-            <p className="hidden text-xs font-medium capitalize text-[var(--primary-300)] xl:block">
-              {new Date().toLocaleDateString("es-ES", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
-          </div>
-
-          <nav className="order-3 w-full overflow-x-auto pb-1 lg:order-none lg:flex-1 lg:pb-0">
-            <div className="flex min-w-max gap-1 lg:justify-center">
-              {links.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) =>
-                    cn(
-                      "rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors",
-                      isActive
-                        ? "bg-white/10 text-white shadow-sm"
-                        : "text-[var(--primary-300)] hover:bg-white/5 hover:text-white",
-                    )
-                  }
-                >
-                  {link.label}
-                </NavLink>
-              ))}
-            </div>
-          </nav>
-
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <div className="flex items-center gap-1.5 rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-2 py-1">
-              <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[var(--primary-400)]">Bolsa</span>
-              <span
-                className={cn(
-                  "text-xs font-bold",
-                  saldoNeto > 0 ? "text-emerald-400" : saldoNeto < 0 ? "text-rose-400" : "text-white",
-                )}
-              >
-                {saldoNeto}d
-              </span>
+        <div className="mx-auto w-full max-w-[1600px] px-3 py-2 sm:px-6">
+          <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="h-8 w-8 overflow-hidden rounded-md">
+                <img src="/logo.webp" alt="Logo" className="h-full w-full object-cover" />
+              </div>
+              <p className="hidden text-sm font-black uppercase tracking-widest text-[var(--primary-200)] sm:block">Netflow</p>
+              <p className="hidden text-xs font-medium capitalize text-[var(--primary-300)] xl:block">
+                {new Date().toLocaleDateString("es-ES", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
             </div>
 
-            <div ref={notificationsRef} className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setNotificationsOpen((current) => !current);
-                }}
-                className="relative flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-300)] transition hover:border-[var(--primary-500)] hover:text-white"
-                title="Notificaciones de solicitudes pendientes"
-                aria-label="Abrir notificaciones"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V10a6 6 0 1 0-12 0v4.2a2 2 0 0 1-.6 1.4L4 17h5" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9.5 17a2.5 2.5 0 0 0 5 0" />
-                </svg>
-                {pendingReceivedCount > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black leading-4 text-white shadow-lg">
-                    {pendingReceivedCount > 99 ? "99+" : pendingReceivedCount}
+            {!isMobileHeader && (
+              <nav className="min-w-0 flex-1 overflow-x-auto px-2">
+                <div className="flex min-w-max justify-center gap-1">
+                  {links.map((link) => (
+                    <NavLink
+                      key={link.to}
+                      to={link.to}
+                      className={({ isActive }) =>
+                        cn(
+                          "rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors",
+                          isActive
+                            ? "bg-white/10 text-white shadow-sm"
+                            : "text-[var(--primary-300)] hover:bg-white/5 hover:text-white",
+                        )
+                      }
+                    >
+                      {link.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </nav>
+            )}
+
+            {!isMobileHeader ? (
+              <div className="ml-auto flex items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-1.5 rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-2 py-1">
+                  <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[var(--primary-400)]">Bolsa</span>
+                  <span
+                    className={cn(
+                      "text-xs font-bold",
+                      saldoNeto > 0 ? "text-emerald-400" : saldoNeto < 0 ? "text-rose-400" : "text-white",
+                    )}
+                  >
+                    {saldoNeto}d
                   </span>
-                )}
-              </button>
-            </div>
+                </div>
 
-            <div className="hidden text-right sm:block">
-              <span className="block text-sm font-semibold leading-none text-white">{user?.nombre}</span>
-              <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]">{user?.rol}</p>
-            </div>
+                <div ref={notificationsRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotificationsOpen((current) => !current);
+                    }}
+                    className="relative flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-300)] transition hover:border-[var(--primary-500)] hover:text-white"
+                    title="Notificaciones de solicitudes pendientes"
+                    aria-label="Abrir notificaciones"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V10a6 6 0 1 0-12 0v4.2a2 2 0 0 1-.6 1.4L4 17h5" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9.5 17a2.5 2.5 0 0 0 5 0" />
+                    </svg>
+                    {pendingReceivedCount > 0 && (
+                      <span className="absolute -right-1.5 -top-1.5 inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black leading-4 text-white shadow-lg">
+                        {pendingReceivedCount > 99 ? "99+" : pendingReceivedCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
 
-            <div className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/10 text-sm font-black text-white">
-              {user?.nombre?.charAt(0).toUpperCase()}
-            </div>
+                <div className="hidden text-right sm:block">
+                  <span className="block text-sm font-semibold leading-none text-white">{user?.nombre}</span>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]">{user?.rol}</p>
+                </div>
 
-            <button
-              onClick={logout}
-              className="p-1.5 text-[var(--primary-400)] transition-colors hover:text-white"
-              title="Cerrar sesión"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                />
-              </svg>
-            </button>
+                <div className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/10 text-sm font-black text-white">
+                  {user?.nombre?.charAt(0).toUpperCase()}
+                </div>
+
+                <button
+                  onClick={logout}
+                  className="p-1.5 text-[var(--primary-400)] transition-colors hover:text-white"
+                  title="Cerrar sesión"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div className="ml-auto flex items-center gap-2">
+                <div className="flex items-center gap-1.5 rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-2 py-1">
+                  <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[var(--primary-400)]">Bolsa</span>
+                  <span
+                    className={cn(
+                      "text-xs font-bold",
+                      saldoNeto > 0 ? "text-emerald-400" : saldoNeto < 0 ? "text-rose-400" : "text-white",
+                    )}
+                  >
+                    {saldoNeto}d
+                  </span>
+                </div>
+
+                <div ref={notificationsRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotificationsOpen((current) => !current);
+                    }}
+                    className="relative flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-300)] transition hover:border-[var(--primary-500)] hover:text-white"
+                    title="Notificaciones de solicitudes pendientes"
+                    aria-label="Abrir notificaciones"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V10a6 6 0 1 0-12 0v4.2a2 2 0 0 1-.6 1.4L4 17h5" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9.5 17a2.5 2.5 0 0 0 5 0" />
+                    </svg>
+                    {pendingReceivedCount > 0 && (
+                      <span className="absolute -right-1.5 -top-1.5 inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black leading-4 text-white shadow-lg">
+                        {pendingReceivedCount > 99 ? "99+" : pendingReceivedCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (mobileMenuOpen) {
+                      setMobileMenuOpen(false);
+                      return;
+                    }
+
+                    setMobileMenuVisible(true);
+                    window.requestAnimationFrame(() => setMobileMenuOpen(true));
+                  }}
+                  className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--primary-300)] transition hover:border-[var(--primary-500)] hover:text-white"
+                  aria-label="Abrir menú"
+                  aria-expanded={mobileMenuOpen}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
-
         </div>
       </header>
 
-      {notificationsOpen && notificationsPanelPos && ReactDOM.createPortal(
+      {notificationsOpen && (isMobileHeader || notificationsPanelPos) && ReactDOM.createPortal(
         <div
           ref={notificationsPanelRef}
-          className="fixed z-[90] w-[min(24rem,92vw)] rounded-2xl border border-[var(--color-surface-border)] p-4 shadow-2xl sm:p-5"
-          style={{
-            top: `${notificationsPanelPos.top}px`,
-            right: `${notificationsPanelPos.right}px`,
-            backgroundColor: "rgba(18, 20, 24, 0.34)",
-            backdropFilter: "blur(32px) saturate(160%)",
-            WebkitBackdropFilter: "blur(32px) saturate(160%)",
-          }}
+          className={cn(
+            "fixed z-[90] rounded-2xl border border-[var(--color-surface-border)] p-4 shadow-2xl sm:p-5",
+            isMobileHeader ? "left-2 right-2 top-[4.2rem] w-auto" : "w-[min(24rem,92vw)]",
+          )}
+          style={
+            isMobileHeader
+              ? {
+                  backgroundColor: "rgba(18, 20, 24, 0.42)",
+                  backdropFilter: "blur(24px) saturate(150%)",
+                  WebkitBackdropFilter: "blur(24px) saturate(150%)",
+                }
+              : {
+                  top: `${notificationsPanelPos?.top ?? 0}px`,
+                  right: `${notificationsPanelPos?.right ?? 0}px`,
+                  backgroundColor: "rgba(18, 20, 24, 0.34)",
+                  backdropFilter: "blur(32px) saturate(160%)",
+                  WebkitBackdropFilter: "blur(32px) saturate(160%)",
+                }
+          }
         >
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -441,6 +574,83 @@ export const AppShell = () => {
                 );
               })
             )}
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {isMobileHeader && mobileMenuVisible && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[88]">
+          <button
+            type="button"
+            aria-label="Cerrar menú"
+            onClick={() => setMobileMenuOpen(false)}
+            className={cn(
+              "absolute inset-0 bg-black/10 backdrop-blur-sm transition-opacity duration-300 pointer-events-auto",
+              mobileMenuOpen ? "opacity-100" : "opacity-0",
+            )}
+          />
+          <div
+            className={cn(
+              "absolute inset-y-0 right-0 z-10 flex h-full w-[min(84vw,28rem)] max-w-[26rem] flex-col border-l border-[var(--color-surface-border)] bg-grey-900/95 p-4 shadow-2xl transition-transform duration-300 ease-out backdrop-blur-xl",
+              mobileMenuOpen ? "translate-x-0" : "translate-x-full",
+            )}
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.14em] text-white">Menú</h3>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-md border border-[var(--color-surface-border)] bg-white/10 p-2 text-[var(--primary-300)] transition hover:bg-white/15 hover:text-white"
+                aria-label="Cerrar menú"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <nav className="grid gap-2 overflow-y-auto pr-1">
+              {links.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      "rounded-xl px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors",
+                      isActive
+                        ? "bg-white/10 text-white shadow-sm"
+                        : "text-[var(--primary-300)] hover:bg-white/5 hover:text-white",
+                    )
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </nav>
+
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold leading-none text-white">{user?.nombre}</p>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]">{user?.rol}</p>
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/10 text-sm font-black text-white">
+                {user?.nombre?.charAt(0).toUpperCase()}
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                logout();
+              }}
+              className="mt-4 w-full rounded-xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--primary-300)] transition hover:bg-white/10 hover:text-white"
+              title="Cerrar sesión"
+            >
+              Cerrar sesión
+            </button>
           </div>
         </div>,
         document.body,

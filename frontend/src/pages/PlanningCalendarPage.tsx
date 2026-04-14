@@ -245,6 +245,16 @@ export const PlanningCalendarPage = () => {
   const [selectedOverviewYear, setSelectedOverviewYear] = useState(() => new Date().getFullYear());
   const [selectedOverviewMonthIndex, setSelectedOverviewMonthIndex] = useState(() => new Date().getMonth());
   const [viewMode, setViewMode] = useState<"semana" | "mes">("semana");
+  const [isCompactWeek, setIsCompactWeek] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 640px)");
+    const updateCompact = () => setIsCompactWeek(mediaQuery.matches);
+
+    updateCompact();
+    mediaQuery.addEventListener("change", updateCompact);
+    return () => mediaQuery.removeEventListener("change", updateCompact);
+  }, []);
 
   const loadRotationSummary = useCallback(async () => {
     setRotationLoading(true);
@@ -431,6 +441,158 @@ export const PlanningCalendarPage = () => {
     return byDate;
   }, [rotationSummary]);
 
+  const monthColumns = isCompactWeek ? 5 : 7;
+  const visibleMonthCells = useMemo(() => {
+    if (!isCompactWeek) {
+      return activeOverviewMonthCells;
+    }
+
+    const compact: Array<Date | null> = [];
+    for (let index = 0; index < activeOverviewMonthCells.length; index += 7) {
+      compact.push(...activeOverviewMonthCells.slice(index, index + 5));
+    }
+    return compact;
+  }, [activeOverviewMonthCells, isCompactWeek]);
+
+  const monthGroups = useMemo(() => {
+    type MonthGroup = {
+      key: string;
+      span: number;
+      startCell: Date | null;
+      endCell: Date | null;
+      isToday: boolean;
+      isEmpty: boolean;
+      isPlaceholder: boolean;
+      isWeekend: boolean;
+      ownerDisplayName: string;
+      ownerId: string;
+      isMine: boolean;
+      rotationItem?: SemanaRotacionResumen;
+      swapPartnerName?: string | null;
+    };
+
+    const groups: MonthGroup[] = [];
+    for (let index = 0; index < visibleMonthCells.length; index += 1) {
+      const cell = visibleMonthCells[index];
+      const row = Math.floor(index / monthColumns);
+      const iso = cell ? toIsoDate(cell) : null;
+      const rotationItem = iso ? rotationByDate.get(iso) : undefined;
+      const isToday = iso === todayIso;
+      const isPlaceholder = !cell;
+      const isEmpty = !!cell && !rotationItem;
+      const isWeekend = !!cell && (cell.getUTCDay() === 0 || cell.getUTCDay() === 6);
+      const diaSemana = cell ? getDiaSemanaFromDate(cell) : null;
+      const diaDetalle = diaSemana && rotationItem
+        ? rotationItem.dias.find((item) => item.dia === diaSemana) ?? null
+        : null;
+      const ownerId = diaDetalle?.usuario_id ?? rotationItem?.principal_usuario_id ?? "";
+      const ownerName = diaDetalle?.usuario_nombre ?? rotationItem?.principal_usuario_nombre ?? "Sin asignar";
+      const ownerDisplayName = formatDisplayName(ownerName);
+      const swapPartnerName = diaDetalle?.usuarios.find((item) => item.usuario_id !== ownerId)?.usuario_nombre ?? null;
+      const isMine = diaDetalle?.usuario_id === user?.id;
+      const groupKey = isPlaceholder
+        ? `placeholder:${row}`
+        : isEmpty
+        ? `empty:${row}:${isWeekend ? "weekend" : "weekday"}`
+        : `assigned:${row}:${rotationItem?.semana_id}:${ownerId}`;
+
+      const current = {
+        key: groupKey,
+        span: 1,
+        startCell: cell,
+        endCell: cell,
+        isToday,
+        isEmpty,
+        isPlaceholder,
+        isWeekend,
+        ownerDisplayName,
+        ownerId,
+        isMine,
+        rotationItem,
+        swapPartnerName,
+      };
+
+      const previousGroup = groups[groups.length - 1];
+      if (previousGroup && previousGroup.key === groupKey) {
+        previousGroup.span += 1;
+        previousGroup.endCell = cell;
+        previousGroup.isToday = previousGroup.isToday || isToday;
+      } else {
+        groups.push(current);
+      }
+    }
+
+    return groups;
+  }, [monthColumns, rotationByDate, todayIso, user?.id, visibleMonthCells]);
+
+  const visibleWeekdayHeader = useMemo(() => (isCompactWeek ? weekdayHeader.slice(0, 5) : weekdayHeader), [isCompactWeek]);
+
+  const weekGroups = useMemo(() => {
+    if (!selectedWeek) {
+      return [];
+    }
+
+    type WeekGroup = {
+      key: string;
+      span: number;
+      startCell: Date;
+      endCell: Date;
+      isToday: boolean;
+      isEmpty: boolean;
+      ownerDisplayName: string;
+      ownerId: string;
+      isMine: boolean;
+      rotationItem?: SemanaRotacionResumen;
+      swapPartnerName?: string | null;
+    };
+
+    const groups: WeekGroup[] = [];
+    const startOfWeek = parseIsoDate(selectedWeek.fecha_inicio_semana);
+    const maxDayIndex = isCompactWeek ? 5 : 7;
+
+    for (let dayIndex = 0; dayIndex < maxDayIndex; dayIndex += 1) {
+      const cell = addUtcDays(startOfWeek, dayIndex);
+      const iso = toIsoDate(cell);
+      const rotationItem = rotationByDate.get(iso);
+      const isToday = iso === todayIso;
+      const diaSemana = getDiaSemanaFromDate(cell);
+      const diaDetalle = diaSemana
+        ? rotationItem?.dias.find((item) => item.dia === diaSemana) ?? null
+        : null;
+      const ownerId = diaDetalle?.usuario_id ?? rotationItem?.principal_usuario_id ?? "";
+      const ownerName = diaDetalle?.usuario_nombre ?? rotationItem?.principal_usuario_nombre ?? "Sin asignar";
+      const ownerDisplayName = formatDisplayName(ownerName);
+      const swapPartnerName = diaDetalle?.usuarios.find((item) => item.usuario_id !== ownerId)?.usuario_nombre ?? null;
+      const isMine = diaDetalle?.usuario_id === user?.id;
+      const groupKey = rotationItem && ownerId ? `assigned:${rotationItem.semana_id}:${ownerId}` : `empty:${iso}`;
+
+      const current = {
+        key: groupKey,
+        span: 1,
+        startCell: cell,
+        endCell: cell,
+        isToday,
+        isEmpty: !rotationItem,
+        ownerDisplayName,
+        ownerId,
+        isMine,
+        rotationItem,
+        swapPartnerName,
+      };
+
+      const previousGroup = groups[groups.length - 1];
+      if (previousGroup && previousGroup.key === groupKey) {
+        previousGroup.span += 1;
+        previousGroup.endCell = cell;
+        previousGroup.isToday = previousGroup.isToday || isToday;
+      } else {
+        groups.push(current);
+      }
+    }
+
+    return groups;
+  }, [isCompactWeek, rotationByDate, selectedWeek, todayIso, user?.id]);
+
   const todayIsoDate = useMemo(() => toIsoDate(new Date()), []);
 
   const currentWeekId = useMemo(() => {
@@ -538,20 +700,24 @@ export const PlanningCalendarPage = () => {
   return (
     <section className="space-y-4">
       <article className="glass-card float-in space-y-3 p-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <h2 className="text-xl font-bold">Calendario de turnos</h2>
-            <p className="mt-1 text-sm text-[var(--primary-400)]">
-              Consulta lo generado por día, semana y mes, con foco en la siguiente rotación.
-            </p>
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="min-w-0 flex-1 text-xl font-bold">Calendario de turnos</h2>
+            <div className="glass-badge shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold uppercase sm:text-sm">
+              {visibleDaysInRange} días a la vista
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <p className="text-sm text-[var(--primary-400)]">
+            Consulta lo generado por día, semana y mes, con foco en la siguiente rotación.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-1">
               <button
                 type="button"
                 onClick={() => setViewMode("semana")}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                className={`rounded-full px-3 py-2 text-sm font-semibold transition ${
                   viewMode === "semana"
                     ? "bg-[var(--color-surface-bright)] text-white"
                     : "text-[var(--primary-300)] hover:text-white"
@@ -562,7 +728,7 @@ export const PlanningCalendarPage = () => {
               <button
                 type="button"
                 onClick={() => setViewMode("mes")}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                className={`rounded-full px-3 py-2 text-sm font-semibold transition ${
                   viewMode === "mes"
                     ? "bg-[var(--color-surface-bright)] text-white"
                     : "text-[var(--primary-300)] hover:text-white"
@@ -572,16 +738,16 @@ export const PlanningCalendarPage = () => {
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:max-w-[30rem]">
               <button
                 type="button"
                 onClick={viewMode === "semana" ? goToPreviousWeek : goToPreviousMonth}
                 disabled={viewMode === "semana" ? !canGoPreviousWeek : !canGoPreviousMonth}
-                className="glass-button h-10 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
+                className="glass-button h-9 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
               >
                 ←
               </button>
-              <div className="min-w-[170px] sm:min-w-[220px]">
+              <div className="w-full min-w-0 sm:min-w-[14rem] sm:max-w-[22rem]">
                 <CustomSelect
                   value={viewMode === "semana" ? selectedWeekId : selectedMonthKey}
                   onChange={(value) => {
@@ -614,14 +780,10 @@ export const PlanningCalendarPage = () => {
                 type="button"
                 onClick={viewMode === "semana" ? goToNextWeek : goToNextMonth}
                 disabled={viewMode === "semana" ? !canGoNextWeek : !canGoNextMonth}
-                className="glass-button h-10 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
+                className="glass-button h-9 rounded-lg px-3 text-sm font-semibold disabled:opacity-30"
               >
                 →
               </button>
-            </div>
-
-            <div className="glass-badge rounded-full px-3 py-2 text-sm font-semibold uppercase">
-              Tus turnos: {visibleDaysInRange} dia(s)
             </div>
           </div>
         </div>
@@ -639,9 +801,9 @@ export const PlanningCalendarPage = () => {
             <p className="text-sm text-[var(--primary-400)] italic">Selecciona una semana</p>
           ) : (
             <div className="overflow-x-auto">
-              <div className="min-w-[640px] space-y-3">
-                <div className="grid grid-cols-7 gap-1">
-                {weekdayHeader.map((label) => (
+              <div className={isCompactWeek ? "space-y-3 p-1" : "min-w-[640px] space-y-3 p-1"}>
+                <div className={`grid ${isCompactWeek ? "grid-cols-5" : "grid-cols-7"} gap-1`}>
+                {visibleWeekdayHeader.map((label) => (
                   <div
                     key={`week-header-${label}`}
                     className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]"
@@ -651,68 +813,71 @@ export const PlanningCalendarPage = () => {
                 ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-1">
-                  {Array.from({ length: 7 }).map((_, dayIndex) => {
-                  const cell = addUtcDays(parseIsoDate(selectedWeek.fecha_inicio_semana), dayIndex);
-                  const iso = toIsoDate(cell);
-                  const rotationItem = rotationByDate.get(iso);
-                  const isToday = iso === todayIso;
-
-                  if (!rotationItem) {
-                    const todayRingClasses = isToday
+                <div className={`grid ${isCompactWeek ? "grid-cols-5" : "grid-cols-7"} gap-1`}>
+                  {weekGroups.map((group, groupIndex) => {
+                    const spanStyle = { gridColumn: `span ${group.span}` };
+                    const groupStartDate = group.startCell.getUTCDate();
+                    const groupEndDate = group.endCell.getUTCDate();
+                    const dateLabel = group.span > 1 ? `${groupStartDate} - ${groupEndDate}` : `${groupStartDate}`;
+                    const todayRingClasses = group.isToday
                       ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
                       : "hover:scale-[1.01] hover:shadow-lg";
 
-                    return (
-                      <div
-                        key={`week-cell-${iso}`}
-                        className={`min-h-24 rounded-xl border border-slate-700 p-2 text-slate-400 transition-all ${todayRingClasses}`}
-                      >
-                        <div className="flex justify-start">
-                          <p className="text-[10px] font-black opacity-50">{cell.getUTCDate()}</p>
+                    if (group.isEmpty) {
+                      const weekendEmptyClasses = group.startCell.getUTCDay() === 0 || group.startCell.getUTCDay() === 6
+                        ? "border-red-500/20 bg-red-500/10 text-rose-200"
+                        : "border-slate-700 text-slate-400";
+
+                      return (
+                        <div
+                          key={`week-group-empty-${groupIndex}`}
+                          style={spanStyle}
+                          className={`min-h-24 rounded-xl p-2 transition-all ${weekendEmptyClasses} ${todayRingClasses}`}
+                        >
+                          <div className="flex justify-start">
+                            <p className="text-[10px] font-black opacity-50">{dateLabel}</p>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  }
+                      );
+                    }
 
-                  const diaSemana = getDiaSemanaFromDate(cell);
-                  const diaDetalle = diaSemana
-                    ? rotationItem.dias.find((item) => item.dia === diaSemana) ?? null
-                    : null;
-                  const ownerId = diaDetalle?.usuario_id ?? rotationItem.principal_usuario_id;
-                  const isUserDay = diaDetalle?.usuario_id === user?.id;
-                  const isMine = isUserDay;
-                  const ownerName = diaDetalle?.usuario_nombre ?? rotationItem.principal_usuario_nombre ?? "Sin asignar";
-                  const swapPartner = diaDetalle?.usuarios.find((item) => item.usuario_id !== ownerId) ?? null;
-
-                  const baseClasses = isMine
-                    ? "border-blue-500/60 bg-blue-500/15 text-blue-100"
-                    : "border-slate-700 text-slate-300";
-
-                  const todayRingClasses = isToday
-                    ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
-                    : "hover:scale-[1.01] hover:shadow-lg";
+                    const baseClasses = group.isMine
+                      ? "border-blue-500/60 bg-blue-500/15 text-blue-100"
+                      : "border-slate-700 text-slate-300";
 
                     return (
-                      <div
-                        key={`week-cell-${iso}`}
-                        className={`min-h-24 rounded-xl border p-2 text-left transition-all ${baseClasses} ${todayRingClasses}`}
+                      <button
+                        key={`week-group-${groupIndex}`}
+                        type="button"
+                        style={spanStyle}
+                        onClick={() => {
+                          if (group.rotationItem) {
+                            setSelectedWeekId(group.rotationItem.semana_id);
+                            void reloadWeekDetail(group.rotationItem.semana_id);
+                          }
+                        }}
+                        className={`min-h-24 w-full rounded-xl border p-2 text-left transition-all ${baseClasses} ${todayRingClasses}`}
                       >
-                        <div className="flex justify-between items-start">
-                          <p className="text-[10px] font-black opacity-60">{cell.getUTCDate()}</p>
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="text-[10px] font-black opacity-60">{dateLabel}</p>
+                          {group.span > 1 ? (
+                            <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--primary-400)]">
+                              {group.span} días
+                            </span>
+                          ) : null}
                         </div>
 
                         <p className="mt-4 text-sm font-bold leading-tight truncate">
-                          {ownerName}
+                          {group.ownerDisplayName}
                         </p>
 
-                        {swapPartner ? (
+                        {group.swapPartnerName ? (
                           <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-[var(--primary-200)]">
                             <span aria-hidden>↔</span>
-                            {swapPartner.usuario_nombre}
+                            {group.swapPartnerName}
                           </p>
                         ) : null}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -741,11 +906,11 @@ export const PlanningCalendarPage = () => {
         )}
 
         {!rotationLoading && availableRotationYears.length > 0 && (
-          <article key={activeOverviewMonthKey} className="glass-panel p-4">
+          <div key={activeOverviewMonthKey} className="space-y-4">
             <div className="overflow-x-auto">
-              <div className="min-w-[640px]">
-                <div className="grid grid-cols-7 gap-1">
-              {weekdayHeader.map((label) => (
+              <div className={isCompactWeek ? "space-y-3 p-1" : "min-w-[640px] space-y-3 p-1"}>
+                <div className={`grid ${isCompactWeek ? "grid-cols-5" : "grid-cols-7"} gap-1`}>
+              {visibleWeekdayHeader.map((label) => (
                 <div
                   key={`${activeOverviewMonthKey}-${label}`}
                   className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-1 py-1 text-center text-[10px] font-black uppercase tracking-wider text-[var(--primary-400)]"
@@ -755,86 +920,78 @@ export const PlanningCalendarPage = () => {
               ))}
                 </div>
 
-                <div className="mt-2 grid grid-cols-7 gap-1">
-                  {activeOverviewMonthCells.map((cell, index) => {
+                <div className={`mt-2 grid ${isCompactWeek ? "grid-cols-5" : "grid-cols-7"} gap-1`}>
+                  {monthGroups.map((group, groupIndex) => {
+                    const spanStyle = { gridColumn: `span ${group.span}` };
+                    const startDate = group.startCell?.getUTCDate() ?? "";
+                    const endDate = group.endCell?.getUTCDate() ?? "";
+                    const dateLabel = group.span > 1 ? `${startDate} - ${endDate}` : `${startDate}`;
+                    const todayRingClasses = group.isToday
+                      ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
+                      : "hover:scale-[1.01] hover:shadow-lg";
 
-                if (!cell) {
-                  return (
-                    <div
-                      key={`${activeOverviewMonthKey}-empty-${index}`}
-                      className="min-h-24 rounded-xl border border-dashed border-[var(--color-surface-border)] bg-[var(--color-background)]/30"
-                    />
-                  );
-                }
+                    if (group.isPlaceholder) {
+                      return (
+                        <div
+                          key={`month-group-placeholder-${groupIndex}`}
+                          style={spanStyle}
+                          className="min-h-24 rounded-xl border border-dashed border-[var(--color-surface-border)] bg-[var(--color-background)]/30"
+                        />
+                      );
+                    }
 
-                const iso = toIsoDate(cell);
-                const rotationItem = rotationByDate.get(iso);
-                const isToday = iso === todayIso;
+                    if (group.isEmpty) {
+                      const weekendEmptyClasses = group.isWeekend
+                        ? "border-red-500/20 bg-red-500/10 text-rose-200"
+                        : "border-slate-700 text-slate-400";
 
-                if (!rotationItem) {
-                  const todayRingClasses = isToday
-                    ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
-                    : "hover:scale-[1.01] hover:shadow-lg";
+                      return (
+                        <div
+                          key={`month-group-empty-${groupIndex}`}
+                          style={spanStyle}
+                          className={`min-h-24 rounded-xl p-2 transition-all ${weekendEmptyClasses} ${todayRingClasses}`}
+                        >
+                          <div className="flex justify-start">
+                            <p className="text-[10px] font-black opacity-50">{dateLabel}</p>
+                          </div>
+                        </div>
+                      );
+                    }
 
-                  return (
-                    <div
-                      key={`${activeOverviewMonthKey}-${iso}`}
-                      className={`min-h-24 rounded-xl border border-slate-700 p-2 text-slate-400 transition-all ${todayRingClasses}`}
-                    >
-                      <div className="flex justify-start">
-                        <p className="text-[10px] font-black opacity-50">{cell.getUTCDate()}</p>
-                      </div>
-                    </div>
-                  );
-                }
-
-                const diaSemana = getDiaSemanaFromDate(cell);
-                const isWeekend = cell.getUTCDay() === 0 || cell.getUTCDay() === 6;
-                const diaDetalle = diaSemana
-                  ? rotationItem.dias.find((item) => item.dia === diaSemana) ?? null
-                  : null;
-                const ownerId = diaDetalle?.usuario_id ?? rotationItem.principal_usuario_id;
-                const isUserDay = diaDetalle?.usuario_id === user?.id;
-                const isMine = !isWeekend && isUserDay;
-                const ownerName = diaDetalle?.usuario_nombre ?? rotationItem.principal_usuario_nombre ?? "Sin asignar";
-                const ownerDisplayName = formatDisplayName(ownerName);
-                const swapPartner = diaDetalle?.usuarios.find((item) => item.usuario_id !== ownerId) ?? null;
-                const isSelectedWeek = rotationItem.semana_id === selectedWeekId;
-
-                const baseClasses = isMine
-                  ? "border-blue-500/60 bg-blue-500/15 text-blue-100"
-                  : "border-slate-700 text-slate-300";
-
-                const selectedWeekClasses = isSelectedWeek && !isToday
-                  ? "ring-2 ring-blue-500/60 border-blue-500/70 shadow-xl z-20 scale-[1.01]"
-                  : "";
-
-                const todayRingClasses = isToday
-                  ? "ring-2 ring-amber-300/80 border-amber-300/70 shadow-xl z-20 scale-[1.01]"
-                  : "hover:scale-[1.01] hover:shadow-lg";
+                    const baseClasses = group.isMine
+                      ? "border-blue-500/60 bg-blue-500/15 text-blue-100"
+                      : "border-slate-700 text-slate-300";
 
                     return (
                       <button
-                        key={`${activeOverviewMonthKey}-${iso}`}
+                        key={`month-group-${groupIndex}`}
                         type="button"
+                        style={spanStyle}
                         onClick={() => {
-                          setSelectedWeekId(rotationItem.semana_id);
-                          void reloadWeekDetail(rotationItem.semana_id);
+                          if (group.rotationItem) {
+                            setSelectedWeekId(group.rotationItem.semana_id);
+                            void reloadWeekDetail(group.rotationItem.semana_id);
+                          }
                         }}
-                        className={`min-h-24 w-full rounded-xl border p-2 text-left transition-all ${baseClasses} ${selectedWeekClasses} ${todayRingClasses}`}
+                        className={`min-h-24 w-full rounded-xl border p-2 text-left transition-all ${baseClasses} ${todayRingClasses}`}
                       >
-                        <div className="flex justify-between items-start">
-                          <p className="text-[10px] font-black opacity-60">{cell.getUTCDate()}</p>
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="text-[10px] font-black opacity-60">{dateLabel}</p>
+                          {group.span > 1 ? (
+                            <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--primary-400)]">
+                              {group.span} días
+                            </span>
+                          ) : null}
                         </div>
 
                         <p className="mt-4 text-sm font-bold leading-tight truncate">
-                          {ownerDisplayName}
+                          {group.ownerDisplayName}
                         </p>
 
-                        {swapPartner ? (
+                        {group.swapPartnerName ? (
                           <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-[var(--primary-200)]">
                             <span aria-hidden>↔</span>
-                            {swapPartner.usuario_nombre}
+                            {group.swapPartnerName}
                           </p>
                         ) : null}
                       </button>
@@ -843,7 +1000,7 @@ export const PlanningCalendarPage = () => {
                 </div>
               </div>
             </div>
-          </article>
+          </div>
         )}
       </article>
       )}
