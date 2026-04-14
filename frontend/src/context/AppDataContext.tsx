@@ -42,6 +42,7 @@ interface AppDataContextValue {
   setSelectedWeekId: (weekId: string) => void;
   reloadAll: () => Promise<void>;
   reloadIntercambios: () => Promise<void>;
+  reloadBolsaSaldos: () => Promise<void>;
   reloadWeekDetail: (weekId?: string) => Promise<void>;
   clearLastError: () => void;
 }
@@ -141,6 +142,20 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAuthenticated]);
 
+  const reloadBolsaSaldos = useCallback(async () => {
+    if (!isAuthenticated) {
+      setBolsaSaldos(emptySaldos);
+      return;
+    }
+
+    try {
+      const saldosData = await api.bolsaSaldos();
+      setBolsaSaldos(saldosData);
+    } catch (error) {
+      setLastError(asErrorMessage(error));
+    }
+  }, [isAuthenticated]);
+
   const reloadWeekDetail = useCallback(
     async (weekId?: string) => {
       const targetWeekId = weekId ?? selectedWeekId;
@@ -190,6 +205,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
       setSelectedWeekId,
       reloadAll,
       reloadIntercambios,
+      reloadBolsaSaldos,
       reloadWeekDetail,
       clearLastError,
     }),
@@ -203,6 +219,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
       myAssignments,
       reloadAll,
       reloadIntercambios,
+      reloadBolsaSaldos,
       reloadWeekDetail,
       selectedWeekId,
       users,

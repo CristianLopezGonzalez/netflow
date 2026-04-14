@@ -621,7 +621,7 @@ export const PlanningCalendarPage = () => {
             </div>
 
             <div className="glass-badge rounded-full px-3 py-2 text-sm font-semibold uppercase">
-              Tu visibilidad: {visibleDaysInRange} dia(s)
+              Tus turnos: {visibleDaysInRange} dia(s)
             </div>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 
 const commonLinks = [
-  { to: "/vistas", label: "Vistas" },
+  { to: "/calendario", label: "calendario" },
   { to: "/intercambios", label: "Intercambios" },
   { to: "/bolsa", label: "Bolsa de dias" },
   { to: "/calendar", label: "Google Calendar" },
@@ -17,9 +17,6 @@ export const AppShell = () => {
     loading,
     lastError,
     clearLastError,
-    reloadAll,
-    weeks,
-    myAssignments,
     intercambios,
     bolsaSaldos,
   } = useAppData();
@@ -35,10 +32,50 @@ export const AppShell = () => {
         ]
       : commonLinks;
 
-  const pendientesRecibidas = intercambios.recibidas.filter((item) => item.estado === "pendiente").length;
-  const pendientesEnviadas = intercambios.enviadas.filter((item) => item.estado === "pendiente").length;
-  const totalMeDeben = bolsaSaldos.me_deben.reduce((sum, item) => sum + item.me_deben, 0);
-  const totalDebo = bolsaSaldos.debo.reduce((sum, item) => sum + item.debo, 0);
+  const bolsaTotalMeDeben = bolsaSaldos.me_deben.reduce((sum, item) => sum + item.me_deben, 0);
+  const bolsaTotalDebo = bolsaSaldos.debo.reduce((sum, item) => sum + item.debo, 0);
+
+  const requestByUser = new Map<string, { me_deben: number; debo: number }>();
+
+  intercambios.recibidas.forEach((item) => {
+    if (item.estado === "rechazada" || item.estado === "cancelada") {
+      return;
+    }
+
+    const current = requestByUser.get(item.solicitante.id) ?? { me_deben: 0, debo: 0 };
+    current.me_deben += item.dias_estimados;
+    requestByUser.set(item.solicitante.id, current);
+  });
+
+  intercambios.enviadas.forEach((item) => {
+    if (item.estado === "rechazada" || item.estado === "cancelada") {
+      return;
+    }
+
+    const current = requestByUser.get(item.receptor.id) ?? { me_deben: 0, debo: 0 };
+    current.debo += item.dias_estimados;
+    requestByUser.set(item.receptor.id, current);
+  });
+
+  let requestTotalMeDeben = 0;
+  let requestTotalDebo = 0;
+
+  requestByUser.forEach((entry) => {
+    const net = entry.me_deben - entry.debo;
+    if (net > 0) {
+      requestTotalMeDeben += net;
+      return;
+    }
+    requestTotalDebo += Math.abs(net);
+  });
+
+  const hasBolsaData =
+    bolsaTotalMeDeben > 0
+    || bolsaTotalDebo > 0
+    || bolsaSaldos.detalles.some((item) => item.me_deben > 0 || item.debo > 0);
+
+  const totalMeDeben = hasBolsaData ? bolsaTotalMeDeben : requestTotalMeDeben;
+  const totalDebo = hasBolsaData ? bolsaTotalDebo : requestTotalDebo;
   const saldoNeto = totalMeDeben - totalDebo;
 
   return (
@@ -81,10 +118,7 @@ export const AppShell = () => {
         <div className="flex items-center gap-4">
           {/* Header Stats Strip */}
           <div className="hidden xl:flex items-center gap-4 pr-4 border-r border-[var(--color-surface-border)]">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] uppercase font-black text-[var(--primary-400)]">Ptes:</span>
-              <span className="text-xs font-bold text-amber-400">{pendientesRecibidas + pendientesEnviadas}</span>
-            </div>
+            <div className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] uppercase font-black text-[var(--primary-400)]">Bolsa:</span>
               <span className={cn(
@@ -92,6 +126,10 @@ export const AppShell = () => {
                 saldoNeto > 0 ? "text-emerald-400" : saldoNeto < 0 ? "text-rose-400" : "text-white"
               )}>{saldoNeto}d</span>
             </div>
+            <span className="text-[10px] text-[var(--primary-400)]">
+              {totalMeDeben}d me deben · {totalDebo}d debo
+            </span>
+          </div>
           </div>
 
           <div className="flex items-center gap-3 pl-3">

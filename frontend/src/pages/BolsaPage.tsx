@@ -555,14 +555,14 @@ export const BolsaPage = () => {
     if (companionsDisponibles.length === 0) {
       setError(
         form.direccion === "cobrar"
-          ? "No hay companeros que te deban dias para cobrar ahora mismo."
+          ? "No hay compañeros que te deban días para cobrar ahora mismo."
           : "No tienes deuda pendiente para devolver en este momento.",
       );
       return;
     }
 
     if (!form.usuario_id) {
-      setError("Debes seleccionar un companero para compensar la deuda.");
+      setError("Debes seleccionar un compañero para compensar la deuda.");
       return;
     }
 
@@ -670,7 +670,7 @@ export const BolsaPage = () => {
           />
           {form.direccion === "devolver" && !form.usuario_id && (
             <p className="mt-2 text-xs text-[var(--primary-500)]">
-              Selecciona primero un companero acreedor para cargar sus semanas.
+              Selecciona primero un compañero acreedor para cargar sus semanas.
             </p>
           )}
           {form.direccion === "devolver" && form.usuario_id && loadingCompanionWeeks && (
@@ -718,7 +718,7 @@ export const BolsaPage = () => {
           </div>
           {!hasDevolverDebt && (
             <p className="text-xs font-semibold text-[var(--primary-500)]">
-              No debes dias ahora mismo, por eso Devolver deuda esta deshabilitado.
+              No debes días ahora mismo, por eso Devolver deuda esta deshabilitado.
             </p>
           )}
           <p className="text-sm text-[var(--primary-400)]">
@@ -733,7 +733,7 @@ export const BolsaPage = () => {
             kind="info"
             message={
               form.direccion === "cobrar"
-                ? "No hay usuarios que te deban dias ahora mismo."
+                ? "No hay usuarios que te deban días ahora mismo."
                 : "No tienes deuda pendiente para devolver ahora mismo."
             }
           />
@@ -742,7 +742,7 @@ export const BolsaPage = () => {
         {form.direccion === "cobrar" && companionsDisponibles.length > 0 && selectedWeekId && sourceAssignmentsSemana.length === 0 && (
           <NoticeBanner
             kind="info"
-            message="Te deben dias, pero en esta semana no tienes turnos para cobrar. Cambia la semana activa a una con tus turnos. No necesitas borrar ni recrear calendario."
+            message="Te deben días, pero en esta semana no tienes turnos para cobrar. Cambia la semana activa a una con tus turnos. No necesitas borrar ni recrear calendario."
           />
         )}
 
@@ -766,7 +766,7 @@ export const BolsaPage = () => {
           </div>
 
           <div className="block text-sm text-[var(--primary-300)]">
-            {form.direccion === "cobrar" ? "Companero deudor" : "Companero acreedor"}
+            {form.direccion === "cobrar" ? "Compañero deudor" : "Compañero acreedor"}
             <CustomSelect
               value={form.usuario_id}
               onChange={(val) => {
@@ -790,8 +790,8 @@ export const BolsaPage = () => {
           </div>
 
           <div className="glass-soft px-3 py-2 text-sm text-[var(--primary-300)]">
-            {!form.usuario_id && <p>Selecciona un companero para ver el saldo individual.</p>}
-            {form.usuario_id && loadingCompanionBalance && <p>Cargando saldo con companero...</p>}
+            {!form.usuario_id && <p>Selecciona un compañero para ver el saldo individual.</p>}
+            {form.usuario_id && loadingCompanionBalance && <p>Cargando saldo con compañero...</p>}
             {form.usuario_id && !loadingCompanionBalance && companionBalance && (
               <div className="space-y-1">
                 <p className="font-semibold text-[var(--primary-50)]">
@@ -983,7 +983,7 @@ export const BolsaPage = () => {
             </p>
             <p className="mt-1 text-sm text-[var(--primary-300)]">
               {form.direccion === "cobrar"
-                ? "Cuando un companero te deba dias, podras crear solicitudes de cobro desde aqui."
+                ? "Cuando un compañero te deba días, podras crear solicitudes de cobro desde aqui."
                 : "Cuando tengas deuda pendiente, podras activar Devolver deuda y crear solicitudes desde esta misma pantalla."}
             </p>
           </div>

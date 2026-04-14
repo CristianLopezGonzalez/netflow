@@ -26,13 +26,13 @@ function App() {
             </AppDataProvider>
           }
         >
-          <Route index element={<Navigate to="/vistas" replace />} />
-          <Route path="/vistas" element={<PlanningCalendarPage />} />
+          <Route index element={<Navigate to="/calendario" replace />} />
+          <Route path="/calendario" element={<PlanningCalendarPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/generacion" element={<Navigate to="/admin" replace />} />
-          <Route path="/semanas" element={<Navigate to="/vistas" replace />} />
-          <Route path="/asignaciones" element={<Navigate to="/vistas" replace />} />
-          <Route path="/mis-tardes" element={<Navigate to="/vistas" replace />} />
+          <Route path="/semanas" element={<Navigate to="/calendario" replace />} />
+          <Route path="/asignaciones" element={<Navigate to="/calendario" replace />} />
+          <Route path="/mis-tardes" element={<Navigate to="/calendario" replace />} />
           <Route path="/intercambios" element={<ExchangesPage />} />
           <Route path="/bolsa" element={<BolsaPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
@@ -41,7 +41,7 @@ function App() {
 
       <Route
         path="*"
-        element={<Navigate to={isAuthenticated ? "/vistas" : "/login"} replace />}
+        element={<Navigate to={isAuthenticated ? "/calendario" : "/login"} replace />}
       />
     </Routes>
   );

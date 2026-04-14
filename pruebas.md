@@ -18,7 +18,7 @@ Comprobar las funcionalidades principales de la app sin incluir Google Calendar.
 ## 1. Autenticación
 - Registrar un usuario nuevo desde el frontend.
 - Iniciar sesión con ese usuario.
-- Verificar redirección a `/vistas`.
+- Verificar redirección a `/calendario`.
 - Verificar que la sesión muestra nombre y rol del usuario.
 - Cerrar sesión y comprobar que vuelve a `/login`.
 
@@ -39,12 +39,12 @@ Comprobar las funcionalidades principales de la app sin incluir Google Calendar.
 - Si el supervisor solo tiene GET, comprobar que no puede crear/editar/eliminar.
 
 ## 4. Navegación y rutas básicas
-- Navegar a `Vistas`, `Admin`, `Intercambios`, `Bolsa de dias`, `Google Calendar`.
+- Navegar a `calendario`, `Admin`, `Intercambios`, `Bolsa de dias`, `Google Calendar`.
 - Comprobar que los enlaces funcionan.
 - Comprobar que la app no muestra errores en la consola al cambiar entre pantallas.
 
 ## 5. Semanas y calendario
-- En `Vistas`, revisar el listado de semanas.
+- En `calendario`, revisar el listado de semanas.
 - Seleccionar una semana y comprobar que carga sus asignaciones.
 - Verificar que las asignaciones se muestran en la tabla correspondiente.
 - Comprobar que el selector de semana cambia el contenido.

@@ -6,6 +6,7 @@ import { NoticeBanner } from "../components/common/NoticeBanner";
 import { WeekSelector } from "../components/common/WeekSelector";
 import CustomSelect from "../components/common/CustomSelect";
 import { useAppData } from "../context/AppDataContext";
+import { useAuth } from "../context/AuthContext";
 import type { Asignacion, BolsaSaldos, EstadoSolicitud, Semana, SolicitudIntercambio } from "../types";
 import { asErrorMessage, dayOrder, formatAssignment } from "../utils/formatters";
 
@@ -298,9 +299,11 @@ export const ExchangesPage = () => {
     bolsaSaldos,
     selectedWeekId,
     setSelectedWeekId,
+    reloadBolsaSaldos,
     reloadIntercambios,
     reloadWeekDetail,
   } = useAppData();
+  const { user } = useAuth();
 
   const [submitBusy, setSubmitBusy] = useState(false);
   const [error, setError] = useState("");
@@ -328,12 +331,11 @@ export const ExchangesPage = () => {
 
   const refreshBolsaSaldos = useCallback(async () => {
     try {
-      const data = await api.bolsaSaldos();
-      setLiveBolsaSaldos(data);
+      await reloadBolsaSaldos();
     } catch {
       // Keep last known values; this refresh is best-effort.
     }
-  }, []);
+  }, [reloadBolsaSaldos]);
 
   useEffect(() => {
     setLiveBolsaSaldos(bolsaSaldos);
@@ -351,6 +353,16 @@ export const ExchangesPage = () => {
   const selectedCompanion = useMemo(
     () => users.find((user) => user.id === form.receptor_id) ?? null,
     [form.receptor_id, users],
+  );
+
+  const receptorOptions = useMemo(
+    () => [
+      { value: "", label: "Selecciona usuario" },
+      ...users
+        .filter((person) => person.rol === "empleado")
+        .map((person) => ({ value: person.id, label: person.nombre })),
+    ],
+    [users],
   );
 
   const myWeekOptions = useMemo(() => {
@@ -447,6 +459,7 @@ export const ExchangesPage = () => {
         : selectedDestinationIds.length;
 
   const [selectedExchangeTab, setSelectedExchangeTab] = useState<ExchangeSection>("recibidas");
+  const [newRequestOpen, setNewRequestOpen] = useState(false);
   const [selectedSummary, setSelectedSummary] = useState<"owed" | "debt" | null>(null);
 
   const requestBalanceByUser = useMemo(() => {
@@ -942,7 +955,7 @@ export const ExchangesPage = () => {
     }
 
     if (!form.receptor_id) {
-      setError("Debes seleccionar un companero receptor.");
+      setError("Debes seleccionar un compañero receptor.");
       return;
     }
 
@@ -961,12 +974,12 @@ export const ExchangesPage = () => {
 
         if (form.modo_compensacion === "inmediata") {
           if (!companionWeekId) {
-            setError("Selecciona una semana del companero para intercambio semanal inmediato.");
+            setError("Selecciona una semana del compañero para intercambio semanal inmediato.");
             return;
           }
 
           if (weekDestinationAssignments.length === 0) {
-            setError("El companero no tiene turnos en su semana seleccionada para intercambio semanal inmediato.");
+            setError("El compañero no tiene turnos en su semana seleccionada para intercambio semanal inmediato.");
             return;
           }
 
@@ -1014,7 +1027,7 @@ export const ExchangesPage = () => {
 
         if (selectedDestinations.length !== destinationIds.length) {
           setError(
-            "Algunos turnos del companero ya no estan disponibles. Recarga la vista e intenta de nuevo.",
+            "Algunos turnos del compañero ya no estan disponibles. Recarga la vista e intenta de nuevo.",
           );
           return;
         }
@@ -1188,49 +1201,93 @@ export const ExchangesPage = () => {
         ? "bg-zinc-100 dark:bg-zinc-900/80"
         : "bg-zinc-100 dark:bg-zinc-900/80";
     const counterpartName = section === "recibidas" ? item.solicitante.nombre : item.receptor.nombre;
+    const isUserOrigin = item.asignacion_origen.usuario === user?.id;
+    const entregaLabel = isUserOrigin ? detailDays.origenLabel : detailDays.destinoLabel;
+    const cambioLabel = isUserOrigin ? detailDays.destinoLabel : detailDays.origenLabel;
     const scopeLabel = item.tipo === "semana" ? "Semana completa" : `${groupedItems} dia(s)`;
     const compensationLabel = item.modo_compensacion === "inmediata" ? "Inmediata" : "Bolsa";
     const createdLabel = item.fecha_creacion.slice(0, 10);
+    const statusIcon = isTransitioning
+      ? <span className="h-3 w-3 animate-spin rounded-full border border-current/40 border-t-current" />
+      : item.estado === "aceptada"
+        ? (
+            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l3 3 7-7" />
+            </svg>
+          )
+        : item.estado === "rechazada"
+          ? (
+              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l8 8M14 6l-8 8" />
+              </svg>
+            )
+          : item.estado === "cancelada"
+            ? (
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 10h8" />
+                </svg>
+              )
+            : (
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 5v5l3 2" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+                </svg>
+              );
 
     return (
       <div
         key={keyOverride ?? item.id}
         className={`rounded-xl border p-4 shadow-sm transition hover:shadow-md ${cardClass} ${sectionHighlight}`}
       >
-        <div className="flex flex-wrap gap-2 text-[11px]">
-          <span className="glass-badge rounded-full px-2 py-1 text-[10px] font-semibold">{counterpartName}</span>
-          <span className="glass-badge rounded-full px-2 py-1 text-[10px] font-semibold">{scopeLabel}</span>
-          <span className="glass-badge rounded-full px-2 py-1 text-[10px] font-semibold">{compensationLabel}</span>
+        <div className="flex items-center justify-between gap-2 text-[11px]">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="glass-badge max-w-[8.25rem] truncate rounded-full px-2 py-0.5 text-[9px] font-semibold">{scopeLabel}</span>
+            <span className="glass-badge rounded-full px-2 py-0.5 text-[9px] font-semibold">{compensationLabel}</span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[10px] text-zinc-500 dark:text-zinc-400">
+            <span className="inline-flex items-center gap-1">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 2v3M14 2v3M3 8h14" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 5h12a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Z" />
+              </svg>
+              <span>{createdLabel}</span>
+            </span>
+            <span className={`inline-flex items-center ml-1 gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusPillClass}`}>
+              {statusIcon}
+              <span>{pillLabel}</span>
+            </span>
+          </div>
         </div>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-cyan-200 bg-cyan-100/60 p-3 dark:border-cyan-500/40 dark:bg-cyan-950/30">
-              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">
-                <span>↑</span>
-                <span>Entrega</span>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">
+                  <span>↑</span>
+                  <span>ENTREGA</span>
+                </div>
+                <span className="rounded-full border border-cyan-300 bg-cyan-100 px-2 py-0.5 text-[10px] font-semibold text-cyan-800 dark:border-cyan-500/60 dark:bg-cyan-900/35 dark:text-cyan-100">
+                  TÚ
+                </span>
               </div>
-              <p className="mt-2 text-[13px] font-semibold text-[color:var(--ink)] leading-tight">{detailDays.origenLabel}</p>
+              <p className="mt-2 text-[13px] font-semibold text-[color:var(--ink)] leading-tight">{entregaLabel}</p>
             </div>
             <div className="rounded-2xl border border-amber-200 bg-amber-100/60 p-3 dark:border-amber-500/40 dark:bg-amber-950/30">
-              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
-                <span>↓</span>
-                <span>A cambio</span>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
+                  <span>↓</span>
+                  <span>A CAMBIO</span>
+                </div>
+                <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/35 dark:text-amber-100">
+                  {counterpartName}
+                </span>
               </div>
-              <p className="mt-2 text-[13px] font-semibold text-[color:var(--ink)] leading-tight">{detailDays.destinoLabel}</p>
+              <p className="mt-2 text-[13px] font-semibold text-[color:var(--ink)] leading-tight">{cambioLabel}</p>
             </div>
           </div>
         {cleanMotivo && (
           <p className="mt-3 text-[12px] text-[color:var(--ink-soft)]">Motivo: {cleanMotivo}</p>
         )}
-
-        <div className="mt-3 flex justify-end text-[10px] text-zinc-500 dark:text-zinc-400">
-          <div className="flex items-center gap-2">
-            <span>Fecha solicitud: {createdLabel}</span>
-            <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${statusPillClass}`}>
-              {pillLabel}
-            </span>
-          </div>
-        </div>
 
         {item.estado === "pendiente" && section === "recibidas" && (
           <div className="mt-3 flex gap-2">
@@ -1278,13 +1335,25 @@ export const ExchangesPage = () => {
   return (
     <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
       <article className="glass-card float-in p-5 md:p-6">
-        <h2 className="text-2xl font-bold">Nueva solicitud</h2>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Nueva solicitud</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNewRequestOpen((current) => !current)}
+            className="glass-button glass-button-secondary inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold md:hidden"
+          >
+            {newRequestOpen ? "Ocultar solicitud" : "Nueva solicitud"}
+          </button>
+        </div>
 
-        {/* top week selector removed to keep the form compact; week selection is now inside Tus turnos */}
-
-        <form className="mt-4 space-y-3.5" onSubmit={handleSubmit}>
+        <form
+          className={`mt-4 space-y-3.5 ${newRequestOpen ? "block" : "hidden"} md:block`}
+          onSubmit={handleSubmit}
+        >
           <div className="block text-sm text-[var(--primary-200)]">
-            Companero receptor
+            Compañero receptor
             <CustomSelect
               value={form.receptor_id}
               onChange={(val) => {
@@ -1312,8 +1381,7 @@ export const ExchangesPage = () => {
                 });
               }}
               options={[
-                { value: "", label: "Selecciona usuario" },
-                ...users.map(u => ({ value: u.id, label: u.nombre }))
+                ...receptorOptions
               ]}
               className="mt-2"
             />
@@ -1439,7 +1507,7 @@ export const ExchangesPage = () => {
               <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-200)]">
                 {selectedCompanion
                   ? `Turnos de ${selectedCompanion.nombre}`
-                  : "Turnos del companero seleccionado"}
+                  : "Turnos del compañero seleccionado"}
               </p>
 
               <p className="mt-1 text-xs text-[var(--primary-400)]">
@@ -1480,13 +1548,13 @@ export const ExchangesPage = () => {
 
                   <div className="mt-2 space-y-2">
                     {!form.receptor_id && (
-                      <p className="text-xs text-[var(--primary-400)]">Selecciona un companero para ver sus turnos.</p>
+                      <p className="text-xs text-[var(--primary-400)]">Selecciona un compañero para ver sus turnos.</p>
                     )}
                     {form.receptor_id && loadingCompanionAssignments && (
-                      <p className="text-xs text-[var(--primary-400)]">Cargando turnos del companero...</p>
+                      <p className="text-xs text-[var(--primary-400)]">Cargando turnos del compañero...</p>
                     )}
                     {form.receptor_id && !loadingCompanionAssignments && form.tipo === "dia" && destinationOptions.length === 0 && companionWeekOptions.length > 0 && (
-                      <p className="text-xs text-[var(--primary-400)]">Este companero no tiene turnos en la semana seleccionada.</p>
+                      <p className="text-xs text-[var(--primary-400)]">Este compañero no tiene turnos en la semana seleccionada.</p>
                     )}
                     {form.tipo === "dia"
                       ? destinationOptions.map((assignment) => {
@@ -1559,16 +1627,16 @@ export const ExchangesPage = () => {
       <article className="glass-card float-in space-y-5 p-5 md:p-6">
         <div className="space-y-4">
           <div>
-            <h3 className="text-xl font-bold text-[color:var(--ink)]">Resumen de deuda</h3>
+            <h3 className="text-xl font-bold text-[color:var(--ink)]">Bolsa</h3>
             <p className="mt-1 text-xs text-[color:var(--ink-soft)]">
               Días que debemos y días que nos deben en tus intercambios.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedSummary((current) => (current === "owed" ? null : "owed"))}
-                className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
                   selectedSummary === "owed"
                     ? "bg-zinc-700 border-zinc-500 text-white shadow-sm"
                     : "bg-zinc-900/60 border border-zinc-700 text-zinc-100 hover:bg-zinc-800 hover:text-white"
@@ -1580,7 +1648,7 @@ export const ExchangesPage = () => {
               <button
                 type="button"
                 onClick={() => setSelectedSummary((current) => (current === "debt" ? null : "debt"))}
-                className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
                   selectedSummary === "debt"
                     ? "bg-zinc-700 border-zinc-500 text-white shadow-sm"
                     : "bg-zinc-900/60 border border-zinc-700 text-zinc-100 hover:bg-zinc-800 hover:text-white"

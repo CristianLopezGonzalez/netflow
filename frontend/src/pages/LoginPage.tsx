@@ -19,7 +19,7 @@ export const LoginPage = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/vistas", { replace: true });
+      navigate("/calendario", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -38,7 +38,7 @@ export const LoginPage = () => {
       }
 
       await login(form.email, form.password);
-      navigate("/vistas", { replace: true });
+      navigate("/calendario", { replace: true });
     } catch (submitError) {
       setError(asErrorMessage(submitError));
     } finally {
