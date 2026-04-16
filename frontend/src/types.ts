@@ -15,10 +15,30 @@ export interface Usuario {
   activo: boolean;
 }
 
+export interface UsuarioCreatePayload {
+  nombre: string;
+  email: string;
+  password: string;
+  rol: RolUsuario;
+  activo: boolean;
+}
+
+export interface UsuarioUpdatePayload {
+  nombre?: string;
+  email?: string;
+  password?: string;
+  rol?: RolUsuario;
+  activo?: boolean;
+}
+
 export interface Semana {
   id: string;
   anio: number;
   numero_semana: number;
+  fecha_inicio_semana: string;
+  fecha_fin_semana: string;
+  estado: EstadoSemana;
+}
   fecha_inicio_semana: string;
   fecha_fin_semana: string;
   estado: EstadoSemana;
@@ -155,6 +175,7 @@ export interface SolicitudIntercambio {
   modo_compensacion: ModoCompensacion;
   estado: EstadoSolicitud;
   es_compensacion: boolean;
+  rol_solicitante_compensacion?: "acreedor" | "deudor";
   dias_estimados: number;
   fecha_creacion: string;
   fecha_respuesta: string | null;

@@ -1,19 +1,64 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
 import { WeekSelector } from "../components/common/WeekSelector";
+import CustomSelect from "../components/common/CustomSelect";
 import { useAppData } from "../context/AppDataContext";
-import type { Asignacion, EstadoSolicitud, Semana, SolicitudIntercambio } from "../types";
-import { asErrorMessage, dayOrder, formatAssignment, formatWeek } from "../utils/formatters";
+import { useAuth } from "../context/AuthContext";
+import type { Asignacion, BolsaSaldos, EstadoSolicitud, Semana, SolicitudIntercambio } from "../types";
+import { asErrorMessage, dayOrder, formatAssignment } from "../utils/formatters";
+
+const parseIsoDate = (value: string): Date => {
+  const [year, month, day] = value.split("-").map((part) => Number.parseInt(part, 10));
+  return new Date(Date.UTC(year, month - 1, day));
+};
+
+const formatWeekSelectLabel = (week: Semana): string => {
+  const start = parseIsoDate(week.fecha_inicio_semana);
+  const end = parseIsoDate(week.fecha_fin_semana);
+  const formatter = new Intl.DateTimeFormat("es-ES", { month: "short", timeZone: "UTC" });
+  const startMonth = formatter.format(start).replace(".", "").toLowerCase();
+  const endMonth = formatter.format(end).replace(".", "").toLowerCase();
+  const startDay = `${start.getUTCDate()}`.padStart(2, "0");
+  const endDay = `${end.getUTCDate()}`.padStart(2, "0");
+  const year = end.getUTCFullYear();
+
+  if (startMonth === endMonth) {
+    return `${startDay} - ${endDay} ${endMonth} ${year}`;
+  }
+
+  return `${startDay} ${startMonth} - ${endDay} ${endMonth} ${year}`;
+};
+
+const sortWeeksByStart = (weekList: Semana[]) =>
+  [...weekList].sort(
+    (left, right) => parseIsoDate(left.fecha_inicio_semana).getTime()
+      - parseIsoDate(right.fecha_inicio_semana).getTime(),
+  );
 
 const GROUP_TOKEN_REGEX = /^\[#GRUPO:([^\]]+)\]\s*/;
 
 type ExchangeSection = "recibidas" | "enviadas";
-type RequestGroup = {
-  groupId: string;
-  items: SolicitudIntercambio[];
+
+type ExchangesNavigationState = {
+  focusRequestId?: string;
+  focusRequestSection?: ExchangeSection;
+  focusAt?: number;
+  openNewRequest?: boolean;
+  preset?: {
+    receptor_id?: string;
+    tipo?: "dia" | "semana";
+    asignacion_origen_id?: string;
+    asignacion_origen_ids?: string[];
+    asignacion_destino_id?: string;
+    asignacion_destino_ids?: string[];
+    modo_compensacion?: "bolsa" | "inmediata";
+    motivo?: string;
+  };
+  targetWeekId?: string;
 };
 
 type RequestDaySummary = {
@@ -25,7 +70,7 @@ const statusClass: Record<EstadoSolicitud, string> = {
   pendiente: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/35 dark:text-amber-100 dark:border-amber-500/60",
   aceptada: "bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/35 dark:text-emerald-100 dark:border-emerald-500/60",
   rechazada: "bg-red-100 text-red-900 border-red-300 dark:bg-red-900/35 dark:text-red-100 dark:border-red-500/60",
-  cancelada: "bg-slate-200 text-slate-700 border-slate-300 dark:bg-slate-800/75 dark:text-slate-100 dark:border-slate-500/60",
+  cancelada: "bg-zinc-200 text-zinc-700 border-zinc-300 dark:bg-zinc-800/75 dark:text-zinc-100 dark:border-zinc-500/60",
 };
 
 const statusLabel: Record<EstadoSolicitud, string> = {
@@ -35,146 +80,172 @@ const statusLabel: Record<EstadoSolicitud, string> = {
   cancelada: "Cancelada",
 };
 
-const requestPriority: Record<EstadoSolicitud, number> = {
-  pendiente: 0,
-  aceptada: 1,
-  rechazada: 2,
-  cancelada: 3,
-};
-
 const requestCardClass: Record<EstadoSolicitud, string> = {
-  pendiente:
-    "border-amber-300 bg-[color:var(--glass-surface-2)] hover:border-amber-400 dark:border-amber-500/55 dark:hover:border-amber-400",
-  aceptada:
-    "border-emerald-200 bg-[color:var(--glass-surface-2)] hover:border-emerald-300 dark:border-emerald-500/45 dark:hover:border-emerald-400",
-  rechazada:
-    "border-red-200 bg-[color:var(--glass-surface-2)] hover:border-red-300 dark:border-red-500/45 dark:hover:border-red-400",
-  cancelada:
-    "border-slate-200 bg-[color:var(--glass-surface-2)] hover:border-slate-300 dark:border-slate-500/50 dark:hover:border-slate-400",
-};
-
-const extractGroupId = (motivo: string): string | null => {
-  const match = motivo.match(GROUP_TOKEN_REGEX);
-  return match?.[1] ?? null;
+  pendiente: "border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/80",
+  aceptada: "border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/80",
+  rechazada: "border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/80",
+  cancelada: "border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/80",
 };
 
 const stripGroupToken = (motivo: string): string => motivo.replace(GROUP_TOKEN_REGEX, "").trim();
 
-const groupRequests = (
-  requests: SolicitudIntercambio[],
-): { groups: RequestGroup[]; singles: SolicitudIntercambio[] } => {
-  const groupedMap = new Map<string, SolicitudIntercambio[]>();
-  const singles: SolicitudIntercambio[] = [];
-
-  for (const request of requests) {
-    const groupId = extractGroupId(request.motivo);
-    if (!groupId) {
-      singles.push(request);
-      continue;
-    }
-
-    const current = groupedMap.get(groupId) ?? [];
-    current.push(request);
-    groupedMap.set(groupId, current);
-  }
-
-  const groups = Array.from(groupedMap.entries()).map(([groupId, items]) => ({
-    groupId,
-    items,
-  }));
-
-  return { groups, singles };
-};
+const buildRequestCardDomId = (rawId: string): string =>
+  `exchange-request-${rawId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
 const sortByDay = (assignments: Asignacion[]): Asignacion[] => {
   return [...assignments].sort((a, b) => dayOrder.indexOf(a.dia) - dayOrder.indexOf(b.dia));
 };
 
-const sortAndFormatDays = (days: string[]): string => {
-  const uniqueDays = Array.from(new Set(days));
-  const orderedDays = uniqueDays.sort((left, right) => {
-    const leftIndex = dayOrder.indexOf(left as (typeof dayOrder)[number]);
-    const rightIndex = dayOrder.indexOf(right as (typeof dayOrder)[number]);
-    if (leftIndex === -1 || rightIndex === -1) {
-      return left.localeCompare(right);
-    }
-    return leftIndex - rightIndex;
-  });
+const addUtcDays = (date: Date, days: number): Date =>
+  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + days));
 
-  return orderedDays.join(", ");
+const formatSummaryDates = (dates: Date[]): string => {
+  if (dates.length === 0) {
+    return "Sin días";
+  }
+
+  const sortedDates = [...dates].sort((left, right) => left.getTime() - right.getTime());
+  const first = sortedDates[0];
+  const last = sortedDates[sortedDates.length - 1];
+  const formatter = new Intl.DateTimeFormat("es-ES", { month: "short", timeZone: "UTC" });
+
+  const formatDate = (date: Date, includeYear = false) => {
+    const day = `${date.getUTCDate()}`.padStart(2, "0");
+    const month = formatter.format(date).replace(".", "").toLowerCase();
+    const year = date.getUTCFullYear();
+    return includeYear ? `${day} ${month} ${year}` : `${day} ${month}`;
+  };
+
+  if (sortedDates.length === 1) {
+    return formatDate(first, true);
+  }
+
+  const isConsecutive = sortedDates.every(
+    (date, index) => index === 0 || date.getTime() === sortedDates[index - 1].getTime() + 24 * 60 * 60 * 1000,
+  );
+
+  if (isConsecutive) {
+    if (first.getUTCFullYear() === last.getUTCFullYear()) {
+      return `${formatDate(first, false)} - ${formatDate(last, true)}`;
+    }
+    return `${formatDate(first, true)} - ${formatDate(last, true)}`;
+  }
+
+  return sortedDates.map((date) => formatDate(date, true)).join(", ");
 };
 
 const buildRequestDaySummary = (
   item: SolicitudIntercambio,
-  items: SolicitudIntercambio[] = [item],
+  weeks: Semana[],
 ): RequestDaySummary => {
+  const weekById = new Map(weeks.map((weekItem) => [weekItem.id, weekItem]));
+
+  const formatOneAssignment = (assignment: Asignacion | null): string => {
+    if (!assignment) {
+      return "Sin días";
+    }
+
+    const week = weekById.get(assignment.semana);
+    if (!week) {
+      return assignment.dia;
+    }
+
+    const dayIndex = dayOrder.indexOf(assignment.dia);
+    if (dayIndex < 0) {
+      return assignment.dia;
+    }
+
+    const date = addUtcDays(parseIsoDate(week.fecha_inicio_semana), dayIndex);
+    return `${formatSummaryDates([date])} (${assignment.dia})`;
+  };
+
+  const formatFullWeek = (week: Semana | undefined): string => {
+    if (!week) {
+      return "Sin días";
+    }
+
+    const allDates = dayOrder.map((_, index) =>
+      addUtcDays(parseIsoDate(week.fecha_inicio_semana), index),
+    );
+
+    return `${formatSummaryDates(allDates)} (${dayOrder[0]}-${dayOrder[dayOrder.length - 1]})`;
+  };
+
   if (item.tipo === "semana") {
+    const origenWeek = weekById.get(item.asignacion_origen.semana);
+    const destinoWeek = item.asignacion_destino
+      ? weekById.get(item.asignacion_destino.semana)
+      : undefined;
+
     return {
-      origenLabel: "Semana completa",
-      destinoLabel: item.modo_compensacion === "inmediata" ? "Semana completa" : "No aplica (bolsa)",
+      origenLabel: formatFullWeek(origenWeek),
+      destinoLabel: item.modo_compensacion === "inmediata" ? formatFullWeek(destinoWeek) : "Sin días",
     };
   }
 
-  const originDays = items
-    .map((request) => String(request.asignacion_origen.dia))
-    .filter((day) => day.length > 0);
-  const destinationDays = items
-    .map((request) => String(request.asignacion_destino?.dia ?? ""))
-    .filter((day) => day.length > 0);
-
   return {
-    origenLabel: sortAndFormatDays(originDays) || "Sin dias",
-    destinoLabel:
-      item.modo_compensacion === "inmediata"
-        ? sortAndFormatDays(destinationDays) || "Sin dias"
-        : "No aplica (bolsa)",
+    origenLabel: formatOneAssignment(item.asignacion_origen),
+    destinoLabel: item.modo_compensacion === "inmediata"
+      ? formatOneAssignment(item.asignacion_destino)
+      : "Sin días",
   };
 };
 
-const buildRequestMessage = (
+const resolveRequestFlowDays = (
   item: SolicitudIntercambio,
-  section: ExchangeSection,
-  groupedItems: number,
-): string => {
-  const scope = item.tipo === "semana"
-    ? "una semana completa"
-    : `${groupedItems} dia(s)`;
-  const mode = item.modo_compensacion === "inmediata" ? "intercambio inmediato" : "compensacion en bolsa";
+  currentUserId?: string,
+): { entregaDays: number; cambioDays: number } => {
+  const estimatedDays = Number.isFinite(item.dias_estimados)
+    ? Math.max(0, Math.round(item.dias_estimados))
+    : 0;
 
-  if (section === "recibidas") {
-    return `${item.solicitante.nombre} te solicita ${scope} (${mode}).`;
-  }
+  const originDays = item.tipo === "semana"
+    ? (estimatedDays > 0 ? estimatedDays : dayOrder.length)
+    : 1;
 
-  return `Solicitud para ${item.receptor.nombre}: ${scope} (${mode}).`;
+  const destinationDays = item.modo_compensacion === "inmediata"
+    ? (item.tipo === "semana"
+        ? (estimatedDays > 0 ? estimatedDays : originDays)
+        : (item.asignacion_destino ? 1 : 0))
+    : 0;
+
+  const isCurrentUserOrigin = currentUserId
+    ? item.asignacion_origen.usuario === currentUserId
+    : true;
+
+  return {
+    entregaDays: isCurrentUserOrigin ? originDays : destinationDays,
+    cambioDays: isCurrentUserOrigin ? destinationDays : originDays,
+  };
 };
 
 const sortRequestsForScan = (requests: SolicitudIntercambio[]): SolicitudIntercambio[] => {
-  return [...requests].sort((left, right) => {
-    const priorityDiff = requestPriority[left.estado] - requestPriority[right.estado];
-    if (priorityDiff !== 0) {
-      return priorityDiff;
-    }
-    return right.fecha_creacion.localeCompare(left.fecha_creacion);
-  });
+  return [...requests].sort((left, right) =>
+    right.fecha_creacion.localeCompare(left.fecha_creacion),
+  );
 };
 
 const panelCardClass = "glass-panel p-4";
 const selectChipClass = "glass-chip w-full rounded-lg px-3 py-2 text-left text-sm font-medium";
-const formControlClass = "glass-input mt-2 h-11 w-full rounded-xl px-4 text-base font-medium";
-const textAreaControlClass = "glass-input mt-2 min-h-24 w-full rounded-xl px-4 py-3 text-base";
-const summaryCardClass = "glass-soft rounded-xl px-3 py-2";
+const textAreaControlClass = "glass-input mt-2 min-h-24 w-full rounded-xl px-4 py-3 text-base resize-none";
 
 export const ExchangesPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const {
-    weeks,
     users,
+    weeks,
     myAssignments,
     intercambios,
+    bolsaSaldos,
     selectedWeekId,
     setSelectedWeekId,
+    reloadBolsaSaldos,
     reloadIntercambios,
     reloadWeekDetail,
   } = useAppData();
+  const { user } = useAuth();
 
   const [submitBusy, setSubmitBusy] = useState(false);
   const [error, setError] = useState("");
@@ -186,6 +257,8 @@ export const ExchangesPage = () => {
   const [loadingCompanionWeeks, setLoadingCompanionWeeks] = useState(false);
   const [companionAssignments, setCompanionAssignments] = useState<Asignacion[]>([]);
   const [loadingCompanionAssignments, setLoadingCompanionAssignments] = useState(false);
+  const [companionBalanceDetail, setCompanionBalanceDetail] = useState<{ me_deben: number; debo: number } | null>(null);
+  const [companionBalanceLoadFailed, setCompanionBalanceLoadFailed] = useState(false);
   const [requestActionLoading, setRequestActionLoading] = useState<Record<string, "accept" | "reject">>({});
   const [optimisticStatusById, setOptimisticStatusById] = useState<Record<string, EstadoSolicitud>>({});
   const [form, setForm] = useState({
@@ -196,15 +269,27 @@ export const ExchangesPage = () => {
     modo_compensacion: "bolsa",
     motivo: "",
   });
+  const [liveBolsaSaldos, setLiveBolsaSaldos] = useState<BolsaSaldos>(bolsaSaldos);
+
+  const refreshBolsaSaldos = useCallback(async () => {
+    try {
+      await reloadBolsaSaldos();
+    } catch {
+      // Keep last known values; this refresh is best-effort.
+    }
+  }, [reloadBolsaSaldos]);
+
+  useEffect(() => {
+    setLiveBolsaSaldos(bolsaSaldos);
+  }, [bolsaSaldos]);
+
+  useEffect(() => {
+    void refreshBolsaSaldos();
+  }, [refreshBolsaSaldos, intercambios]);
 
   const selectedWeek = useMemo(
     () => weeks.find((week) => week.id === selectedWeekId) ?? null,
     [weeks, selectedWeekId],
-  );
-
-  const selectedCompanionWeek = useMemo(
-    () => weeks.find((week) => week.id === companionWeekId) ?? null,
-    [weeks, companionWeekId],
   );
 
   const selectedCompanion = useMemo(
@@ -212,9 +297,19 @@ export const ExchangesPage = () => {
     [form.receptor_id, users],
   );
 
+  const receptorOptions = useMemo(
+    () => [
+      { value: "", label: "Selecciona usuario" },
+      ...users
+        .filter((person) => person.rol === "empleado")
+        .map((person) => ({ value: person.id, label: person.nombre })),
+    ],
+    [users],
+  );
+
   const myWeekOptions = useMemo(() => {
     const myWeekIds = new Set(myAssignments.map((assignment) => assignment.semana));
-    return weeks.filter((week) => myWeekIds.has(week.id));
+    return sortWeeksByStart(weeks.filter((week) => myWeekIds.has(week.id)));
   }, [myAssignments, weeks]);
 
   const filteredMyAssignments = useMemo(() => {
@@ -291,12 +386,19 @@ export const ExchangesPage = () => {
     [intercambios.enviadas, optimisticStatusById],
   );
 
-  const groupedReceived = useMemo(() => groupRequests(receivedRequests), [receivedRequests]);
-  const groupedSent = useMemo(() => groupRequests(sentRequests), [sentRequests]);
+  const receivedCardIdByRequestId = useMemo(() => {
+    const map = new Map<string, string>();
+
+    receivedRequests.forEach((item) => {
+      map.set(item.id, buildRequestCardDomId(item.id));
+    });
+
+    return map;
+  }, [receivedRequests]);
+  const receivedDisplayItems = receivedRequests;
+  const sentDisplayItems = sentRequests;
   const receivedCount = receivedRequests.length;
   const sentCount = sentRequests.length;
-  const pendingReceivedCount = receivedRequests.filter((item) => item.estado === "pendiente").length;
-  const pendingSentCount = sentRequests.filter((item) => item.estado === "pendiente").length;
   const isBolsaMode = form.modo_compensacion === "bolsa";
   const selectedOriginCount =
     form.tipo === "semana" ? weekOriginAssignments.length : selectedOriginIds.length;
@@ -306,6 +408,512 @@ export const ExchangesPage = () => {
       : form.tipo === "semana"
         ? weekDestinationAssignments.length
         : selectedDestinationIds.length;
+
+  const [selectedExchangeTab, setSelectedExchangeTab] = useState<ExchangeSection>("recibidas");
+  const [newRequestOpen, setNewRequestOpen] = useState(false);
+  const [selectedSummary, setSelectedSummary] = useState<"owed" | "debt" | null>(null);
+  const [expandedRequestIds, setExpandedRequestIds] = useState<Set<string>>(new Set());
+  const toggleExpandedRequest = useCallback((id: string) => {
+    setExpandedRequestIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+  const [showSubmitTip, setShowSubmitTip] = useState(true);
+  const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const state = location.state as ExchangesNavigationState | null;
+    if (!state) {
+      return;
+    }
+
+    if (state.targetWeekId) {
+      setSelectedWeekId(state.targetWeekId);
+    }
+
+    if (state.openNewRequest) {
+      setNewRequestOpen(true);
+    }
+
+    if (state.preset) {
+      setForm((current) => ({
+        ...current,
+        ...state.preset,
+      }));
+
+      if (state.preset.asignacion_origen_ids?.length) {
+        setSelectedOriginIds(state.preset.asignacion_origen_ids);
+      } else if (state.preset.asignacion_origen_id) {
+        setSelectedOriginIds([state.preset.asignacion_origen_id]);
+      }
+
+      if (state.preset.asignacion_destino_ids?.length) {
+        setSelectedDestinationIds(state.preset.asignacion_destino_ids);
+      } else if (state.preset.asignacion_destino_id) {
+        setSelectedDestinationIds([state.preset.asignacion_destino_id]);
+      }
+    }
+
+    if (state.openNewRequest || state.preset || state.targetWeekId) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.key, location.pathname, location.state, navigate, setSelectedWeekId]);
+
+  const requestBalanceByUser = useMemo(() => {
+    const map = new Map<string, { name: string; me_deben: number; debo: number }>();
+
+    const currentUserId = user?.id;
+    if (!currentUserId) {
+      return map;
+    }
+
+    const applyNetDelta = (counterpartId: string, counterpartName: string, delta: number) => {
+      const current = map.get(counterpartId) ?? { name: counterpartName, me_deben: 0, debo: 0 };
+      const nextNet = current.me_deben - current.debo + delta;
+      current.name = counterpartName;
+      current.me_deben = Math.max(nextNet, 0);
+      current.debo = Math.max(-nextNet, 0);
+      map.set(counterpartId, current);
+    };
+
+    const processRequest = (item: SolicitudIntercambio) => {
+      if (item.estado !== "aceptada") {
+        return;
+      }
+
+      const counterpart = item.solicitante.id === currentUserId ? item.receptor : item.solicitante;
+      const days = item.dias_estimados;
+      if (days <= 0) {
+        return;
+      }
+
+      if (item.es_compensacion) {
+        const solicitanteEsDeudor = item.rol_solicitante_compensacion === "deudor";
+        const deudorId = solicitanteEsDeudor ? item.solicitante.id : item.receptor.id;
+        const acreedorId = solicitanteEsDeudor ? item.receptor.id : item.solicitante.id;
+
+        // Compensation requests reduce existing debt.
+        if (currentUserId === deudorId) {
+          applyNetDelta(counterpart.id, counterpart.nombre, days);
+          return;
+        }
+        if (currentUserId === acreedorId) {
+          applyNetDelta(counterpart.id, counterpart.nombre, -days);
+        }
+        return;
+      }
+
+      if (item.modo_compensacion !== "bolsa") {
+        return;
+      }
+
+      // In bolsa mode, the requester (solicitante) is the deudor if accepted.
+      if (currentUserId === item.solicitante.id) {
+        applyNetDelta(counterpart.id, counterpart.nombre, -days);
+        return;
+      }
+      if (currentUserId === item.receptor.id) {
+        applyNetDelta(counterpart.id, counterpart.nombre, days);
+      }
+    };
+
+    receivedRequests.forEach(processRequest);
+    sentRequests.forEach(processRequest);
+
+    return map;
+  }, [receivedRequests, sentRequests, user?.id]);
+
+  const bolsaBalanceByUser = useMemo(() => {
+    const map = new Map<string, { name: string; me_deben: number; debo: number }>();
+
+    liveBolsaSaldos.detalles.forEach((item) => {
+      map.set(item.usuario.id, {
+        name: item.usuario.nombre,
+        me_deben: item.me_deben,
+        debo: item.debo,
+      });
+    });
+
+    liveBolsaSaldos.me_deben.forEach((item) => {
+      const current = map.get(item.usuario.id) ?? { name: item.usuario.nombre, me_deben: 0, debo: 0 };
+      current.me_deben = Math.max(current.me_deben, item.me_deben);
+      map.set(item.usuario.id, current);
+    });
+
+    liveBolsaSaldos.debo.forEach((item) => {
+      const current = map.get(item.usuario.id) ?? { name: item.usuario.nombre, me_deben: 0, debo: 0 };
+      current.debo = Math.max(current.debo, item.debo);
+      map.set(item.usuario.id, current);
+    });
+
+    return map;
+  }, [liveBolsaSaldos]);
+
+  const netBalanceByUser = useCallback(
+    (source: Map<string, { name: string; me_deben: number; debo: number }>) => {
+      const map = new Map<string, { name: string; me_deben: number; debo: number }>();
+
+      source.forEach((entry, id) => {
+        const net = entry.me_deben - entry.debo;
+        map.set(id, {
+          name: entry.name,
+          me_deben: Math.max(net, 0),
+          debo: Math.max(-net, 0),
+        });
+      });
+
+      return map;
+    },
+    [],
+  );
+
+  const bolsaNettedByUser = useMemo(
+    () => netBalanceByUser(bolsaBalanceByUser),
+    [bolsaBalanceByUser, netBalanceByUser],
+  );
+
+  const requestNettedByUser = useMemo(
+    () => netBalanceByUser(requestBalanceByUser),
+    [netBalanceByUser, requestBalanceByUser],
+  );
+
+  const hasBolsaDebtData = useMemo(
+    () => Array.from(bolsaNettedByUser.values()).some((entry) => entry.me_deben > 0 || entry.debo > 0),
+    [bolsaNettedByUser],
+  );
+
+  const activeNettedByUser = hasBolsaDebtData ? bolsaNettedByUser : requestNettedByUser;
+
+  const owedByWorker = useMemo(
+    () =>
+      Array.from(activeNettedByUser.values())
+        .filter((entry) => entry.me_deben > 0)
+        .map((entry) => ({ name: entry.name, days: entry.me_deben })),
+    [activeNettedByUser],
+  );
+
+  const debtByWorker = useMemo(
+    () =>
+      Array.from(activeNettedByUser.values())
+        .filter((entry) => entry.debo > 0)
+        .map((entry) => ({ name: entry.name, days: entry.debo })),
+    [activeNettedByUser],
+  );
+
+  const owedDays = useMemo(
+    () => owedByWorker.reduce((sum, entry) => sum + entry.days, 0),
+    [owedByWorker],
+  );
+
+  const debtDays = useMemo(
+    () => debtByWorker.reduce((sum, entry) => sum + entry.days, 0),
+    [debtByWorker],
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    const loadCompanionBalance = async () => {
+      if (!form.receptor_id) {
+        setCompanionBalanceDetail(null);
+        setCompanionBalanceLoadFailed(false);
+        return;
+      }
+
+      setCompanionBalanceDetail(null);
+      setCompanionBalanceLoadFailed(false);
+
+      try {
+        const data = await api.bolsaSaldoUsuario(form.receptor_id);
+        if (!active) {
+          return;
+        }
+
+        setCompanionBalanceDetail({
+          me_deben: data.me_deben ?? 0,
+          debo: data.debo ?? 0,
+        });
+      } catch {
+        if (!active) {
+          return;
+        }
+        setCompanionBalanceDetail(null);
+        setCompanionBalanceLoadFailed(true);
+      }
+    };
+
+    void loadCompanionBalance();
+
+    return () => {
+      active = false;
+    };
+  }, [form.receptor_id, intercambios]);
+
+  const companionBalance = useMemo(() => {
+    if (!form.receptor_id) {
+      return { me_deben: 0, debo: 0 };
+    }
+
+    const fallback = requestNettedByUser.get(form.receptor_id);
+    const fromActive = activeNettedByUser.get(form.receptor_id);
+
+    if (companionBalanceDetail) {
+      const detailNet = companionBalanceDetail.me_deben - companionBalanceDetail.debo;
+      const detailNetted = {
+        me_deben: Math.max(detailNet, 0),
+        debo: Math.max(-detailNet, 0),
+      };
+
+      if (
+        detailNetted.me_deben === 0
+        && detailNetted.debo === 0
+        && fallback
+        && (fallback.me_deben > 0 || fallback.debo > 0)
+      ) {
+        return { me_deben: fallback.me_deben, debo: fallback.debo };
+      }
+
+      return detailNetted;
+    }
+
+    if (fromActive) {
+      return {
+        me_deben: fromActive.me_deben,
+        debo: fromActive.debo,
+      };
+    }
+
+    if (fallback) {
+      return { me_deben: fallback.me_deben, debo: fallback.debo };
+    }
+
+    return { me_deben: 0, debo: 0 };
+  }, [activeNettedByUser, companionBalanceDetail, form.receptor_id, requestNettedByUser]);
+
+  const bolsaCurrentOwed = companionBalance.me_deben;
+  const bolsaCurrentDebt = companionBalance.debo;
+  const bolsaFutureNet = bolsaCurrentOwed - (bolsaCurrentDebt + selectedOriginCount);
+  const bolsaFutureOwed = Math.max(bolsaFutureNet, 0);
+  const bolsaFutureDebt = Math.max(-bolsaFutureNet, 0);
+
+  const formatBalanceText = (owed: number, debt: number): string => {
+    if (owed === 0 && debt === 0) {
+      return "cuentas saldadas";
+    }
+    if (owed > 0 && debt === 0) {
+      return `te deben ${owed} días`;
+    }
+    if (debt > 0 && owed === 0) {
+      return `debes ${debt} días`;
+    }
+    return `te deben ${owed} días y debes ${debt} días`;
+  };
+
+  const formatCurrentCompactSummary = (
+    counterpartName: string,
+    owed: number,
+    debt: number,
+  ): string => {
+    if (owed > 0 && debt === 0) {
+      return `${counterpartName} te debe ${owed}d`;
+    }
+    if (debt > 0 && owed === 0) {
+      return `Debes ${debt}d`;
+    }
+    return "Saldado";
+  };
+
+  const formatProjectedCompactSummary = (owed: number, debt: number): string => {
+    if (owed > 0 && debt === 0) {
+      return `te deberá ${owed}d`;
+    }
+    if (debt > 0 && owed === 0) {
+      return `deberás ${debt}d`;
+    }
+    return "quedará saldado";
+  };
+
+  const getAcceptedNetDeltaForCurrentUser = (
+    item: SolicitudIntercambio,
+    estimatedDays: number = item.dias_estimados,
+  ): number => {
+    const currentUserId = user?.id;
+    if (!currentUserId) {
+      return 0;
+    }
+
+    const days = estimatedDays;
+    if (days <= 0) {
+      return 0;
+    }
+
+    if (item.es_compensacion) {
+      const solicitanteEsDeudor = item.rol_solicitante_compensacion === "deudor";
+      const deudorId = solicitanteEsDeudor ? item.solicitante.id : item.receptor.id;
+      const acreedorId = solicitanteEsDeudor ? item.receptor.id : item.solicitante.id;
+
+      if (currentUserId === deudorId) {
+        return days;
+      }
+      if (currentUserId === acreedorId) {
+        return -days;
+      }
+      return 0;
+    }
+
+    if (item.modo_compensacion !== "bolsa") {
+      return 0;
+    }
+
+    if (currentUserId === item.solicitante.id) {
+      return -days;
+    }
+    if (currentUserId === item.receptor.id) {
+      return days;
+    }
+
+    return 0;
+  };
+
+  const submitTip = useMemo(() => {
+    if (!form.receptor_id) {
+      return "Selecciona un compañero.";
+    }
+    if (!selectedWeekId) {
+      return "Selecciona tu semana activa.";
+    }
+    if (form.tipo === "dia") {
+      if (selectedOriginIds.length === 0) {
+        return "Selecciona los días que quieras intercambiar.";
+      }
+      if (!isBolsaMode) {
+        if (!companionWeekId) {
+          return "Selecciona la semana del compañero.";
+        }
+        if (selectedDestinationIds.length === 0) {
+          return `Selecciona días del compañero (${selectedDestinationIds.length}/${selectedOriginIds.length}).`;
+        }
+        if (selectedDestinationIds.length !== selectedOriginIds.length) {
+          return `Selecciona la misma cantidad de turnos del compañero (${selectedDestinationIds.length}/${selectedOriginIds.length}).`;
+        }
+      }
+    }
+    if (form.tipo === "semana" && form.modo_compensacion === "inmediata" && !companionWeekId) {
+      return "Selecciona una semana del compañero para intercambio semanal inmediato.";
+    }
+    return "";
+  }, [
+    form.receptor_id,
+    selectedWeekId,
+    form.tipo,
+    selectedOriginIds.length,
+    selectedDestinationIds.length,
+    isBolsaMode,
+    companionWeekId,
+    form.modo_compensacion,
+  ]);
+
+  const visibleSubmitTip = showSubmitTip ? submitTip : "";
+  const isSubmitDisabled = submitBusy || Boolean(submitTip);
+
+  useEffect(() => {
+    const state = (location.state as ExchangesNavigationState | null) ?? null;
+    const focusRequestId = state?.focusRequestId;
+    if (!focusRequestId) {
+      return;
+    }
+
+    setSelectedExchangeTab(state?.focusRequestSection ?? "recibidas");
+
+    const targetCardId = receivedCardIdByRequestId.get(focusRequestId);
+    if (!targetCardId) {
+      return;
+    }
+
+    const tryFocus = () => {
+      const targetElement = document.getElementById(targetCardId);
+      if (!targetElement) {
+        return false;
+      }
+
+      targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedCardId(targetCardId);
+
+      navigate(location.pathname, { replace: true, state: null });
+
+      window.setTimeout(() => {
+        setHighlightedCardId((current) => (current === targetCardId ? null : current));
+      }, 2300);
+
+      return true;
+    };
+
+    const initialTimer = window.setTimeout(() => {
+      if (tryFocus()) {
+        return;
+      }
+
+      window.setTimeout(() => {
+        void tryFocus();
+      }, 220);
+    }, 80);
+
+    return () => {
+      window.clearTimeout(initialTimer);
+    };
+  }, [location.pathname, location.state, navigate, receivedCardIdByRequestId]);
+
+  useEffect(() => {
+    const onFocusRequest = (event: Event) => {
+      const customEvent = event as CustomEvent<ExchangesNavigationState>;
+      const focusRequestId = customEvent.detail?.focusRequestId;
+      if (!focusRequestId) {
+        return;
+      }
+
+      setSelectedExchangeTab(customEvent.detail?.focusRequestSection ?? "recibidas");
+
+      const targetCardId = receivedCardIdByRequestId.get(focusRequestId);
+      if (!targetCardId) {
+        return;
+      }
+
+      const tryFocus = () => {
+        const targetElement = document.getElementById(targetCardId);
+        if (!targetElement) {
+          return false;
+        }
+
+        targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedCardId(targetCardId);
+
+        window.setTimeout(() => {
+          setHighlightedCardId((current) => (current === targetCardId ? null : current));
+        }, 2300);
+
+        return true;
+      };
+
+      window.setTimeout(() => {
+        if (tryFocus()) {
+          return;
+        }
+
+        window.setTimeout(() => {
+          void tryFocus();
+        }, 220);
+      }, 80);
+    };
+
+    window.addEventListener("netflow:focus-request", onFocusRequest as EventListener);
+    return () => window.removeEventListener("netflow:focus-request", onFocusRequest as EventListener);
+  }, [receivedCardIdByRequestId]);
 
   useEffect(() => {
     let active = true;
@@ -332,7 +940,7 @@ export const ExchangesPage = () => {
             .map((weekSummary) => weekSummary.semana_id),
         );
 
-        const filteredWeeks = weeks.filter((week) => weekIds.has(week.id));
+        const filteredWeeks = sortWeeksByStart(weeks.filter((week) => weekIds.has(week.id)));
         setCompanionWeekOptions(filteredWeeks);
       } catch (loadError) {
         if (!active) {
@@ -481,6 +1089,7 @@ export const ExchangesPage = () => {
   }, [destinationOptions]);
 
   const toggleOriginSelection = (assignment: Asignacion) => {
+    setShowSubmitTip(true);
     if (form.tipo === "semana") {
       setForm((current) => ({
         ...current,
@@ -510,6 +1119,7 @@ export const ExchangesPage = () => {
   };
 
   const toggleDestinationSelection = (assignment: Asignacion) => {
+    setShowSubmitTip(true);
     if (form.modo_compensacion === "bolsa") {
       return;
     }
@@ -536,13 +1146,17 @@ export const ExchangesPage = () => {
     setError("");
     setNotice("");
 
+    if (submitTip) {
+      return;
+    }
+
     if (!selectedWeekId) {
       setError("Debes seleccionar una semana activa para crear el intercambio.");
       return;
     }
 
     if (!form.receptor_id) {
-      setError("Debes seleccionar un companero receptor.");
+      setError("Debes seleccionar un compañero receptor.");
       return;
     }
 
@@ -561,12 +1175,12 @@ export const ExchangesPage = () => {
 
         if (form.modo_compensacion === "inmediata") {
           if (!companionWeekId) {
-            setError("Selecciona una semana del companero para intercambio semanal inmediato.");
+            setError("Selecciona una semana del compañero para intercambio semanal inmediato.");
             return;
           }
 
           if (weekDestinationAssignments.length === 0) {
-            setError("El companero no tiene turnos en su semana seleccionada para intercambio semanal inmediato.");
+            setError("El compañero no tiene turnos en su semana seleccionada para intercambio semanal inmediato.");
             return;
           }
 
@@ -614,7 +1228,7 @@ export const ExchangesPage = () => {
 
         if (selectedDestinations.length !== destinationIds.length) {
           setError(
-            "Algunos turnos del companero ya no estan disponibles. Recarga la vista e intenta de nuevo.",
+            "Algunos turnos del compañero ya no estan disponibles. Recarga la vista e intenta de nuevo.",
           );
           return;
         }
@@ -682,16 +1296,19 @@ export const ExchangesPage = () => {
       setSelectedDestinationIds([]);
       setForm((current) => ({
         ...current,
+        receptor_id: "",
         tipo: "dia",
         asignacion_origen_id: "",
         asignacion_destino_id: "",
         motivo: "",
       }));
+      setShowSubmitTip(false);
 
       await Promise.all([
         reloadIntercambios(),
         reloadWeekDetail(selectedWeekId),
         loadCompanionAssignments(),
+        refreshBolsaSaldos(),
       ]);
     } catch (submitError) {
       setError(`No se pudo enviar la solicitud. ${asErrorMessage(submitError)}`);
@@ -725,11 +1342,18 @@ export const ExchangesPage = () => {
         setNotice(response.detail);
       }
 
+      window.dispatchEvent(
+        new CustomEvent("netflow:exchange-processed", {
+          detail: { requestId, action },
+        }),
+      );
+
       try {
         await Promise.all([
           reloadIntercambios(),
           reloadWeekDetail(selectedWeekId),
           loadCompanionAssignments(),
+          refreshBolsaSaldos(),
         ]);
 
         setOptimisticStatusById((current) => {
@@ -761,13 +1385,9 @@ export const ExchangesPage = () => {
   const renderRequestItem = (
     item: SolicitudIntercambio,
     section: ExchangeSection,
-    groupedItems = 1,
-    keyOverride?: string,
-    daySummary?: RequestDaySummary,
+    isExpanded: boolean,
   ) => {
     const cleanMotivo = stripGroupToken(item.motivo);
-    const message = buildRequestMessage(item, section, groupedItems);
-    const detailDays = daySummary ?? buildRequestDaySummary(item);
     const isAccepting = requestActionLoading[item.id] === "accept";
     const isRejecting = requestActionLoading[item.id] === "reject";
     const isTransitioning = isAccepting || isRejecting;
@@ -780,101 +1400,233 @@ export const ExchangesPage = () => {
       ? "bg-amber-100 text-amber-900 border-amber-300 animate-pulse dark:bg-amber-900/35 dark:text-amber-100 dark:border-amber-500/60"
       : statusClass[item.estado];
     const cardClass = isTransitioning
-      ? "border-amber-300 bg-[color:var(--glass-surface-2)] dark:border-amber-500/55"
+      ? "border-zinc-400 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-900/80"
       : requestCardClass[item.estado];
-    const counterpartLabel = section === "recibidas" ? "De" : "Para";
     const counterpartName = section === "recibidas" ? item.solicitante.nombre : item.receptor.nombre;
-    const scopeLabel = item.tipo === "semana" ? "Semana completa" : `${groupedItems} dia(s)`;
-    const compensationLabel = item.modo_compensacion === "inmediata" ? "Inmediata" : "Bolsa";
+    const isCurrentUserOrigin = user?.id
+      ? item.asignacion_origen.usuario === user.id
+      : true;
+    const daySummary = buildRequestDaySummary(item, weeks);
+    const entregaDetailLabel = isCurrentUserOrigin ? daySummary.origenLabel : daySummary.destinoLabel;
+    const cambioDetailLabel = isCurrentUserOrigin ? daySummary.destinoLabel : daySummary.origenLabel;
+    const { entregaDays, cambioDays } = resolveRequestFlowDays(item, user?.id);
+    const entregaHeaderLabel = entregaDays > 0 ? `ENTREGA (${entregaDays})` : "ENTREGA";
+    const cambioHeaderLabel = cambioDays > 0 ? `A CAMBIO (${cambioDays})` : "A CAMBIO";
     const createdLabel = item.fecha_creacion.slice(0, 10);
+    const counterpartId = section === "recibidas" ? item.solicitante.id : item.receptor.id;
+    const baseBalance = activeNettedByUser.get(counterpartId)
+      ?? requestNettedByUser.get(counterpartId)
+      ?? { name: counterpartName, me_deben: 0, debo: 0 };
+    const currentNet = baseBalance.me_deben - baseBalance.debo;
+    const pendingDaysEstimate = item.tipo === "semana"
+      ? Math.max(dayOrder.length, item.dias_estimados)
+      : Math.max(1, item.dias_estimados);
+    const acceptDelta = item.estado === "pendiente"
+      ? getAcceptedNetDeltaForCurrentUser(item, pendingDaysEstimate)
+      : 0;
+    const projectedNet = currentNet + acceptDelta;
+    const projectedBalance = {
+      me_deben: Math.max(projectedNet, 0),
+      debo: Math.max(-projectedNet, 0),
+    };
+    const cardDomId = buildRequestCardDomId(item.id);
+    const isHighlighted = highlightedCardId === cardDomId;
+    const statusIcon = isTransitioning
+      ? <span className="h-3 w-3 animate-spin rounded-full border border-current/40 border-t-current" />
+      : item.estado === "aceptada"
+        ? (
+            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l3 3 7-7" />
+            </svg>
+          )
+        : item.estado === "rechazada"
+          ? (
+              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l8 8M14 6l-8 8" />
+              </svg>
+            )
+          : item.estado === "cancelada"
+            ? (
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 10h8" />
+                </svg>
+              )
+            : (
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 5v5l3 2" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+                </svg>
+              );
+
+    const dayLabel = (days: number) => `${days} día${days === 1 ? "" : "s"}`;
+    const showUnifiedSwapPill = item.modo_compensacion === "inmediata"
+      && entregaDays > 0
+      && cambioDays > 0
+      && entregaDays === cambioDays;
 
     return (
       <div
-        key={keyOverride ?? item.id}
-        className={`rounded-xl border p-3 shadow-sm transition hover:shadow-md ${cardClass}`}
+        id={cardDomId}
+        key={item.id}
+        className={`rounded-xl border p-3 shadow-sm transition hover:shadow-md ${cardClass} ${isHighlighted ? "request-focus-glow" : ""}`}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">
-              {counterpartLabel}: {counterpartName}
-            </p>
-            <p className="text-sm font-semibold text-[color:var(--ink)]">{message}</p>
-          </div>
-          <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${statusPillClass}`}>
-            {pillLabel}
-          </span>
-        </div>
-
-        <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
-          <span className="glass-badge rounded-full px-2 py-1">Tipo: {scopeLabel}</span>
-          <span className="glass-badge rounded-full px-2 py-1">Compensacion: {compensationLabel}</span>
-          <span className="glass-badge rounded-full px-2 py-1">Creada: {createdLabel}</span>
-        </div>
-
-        <div className="mt-2 space-y-1 text-xs text-[color:var(--ink-soft)]">
-          <p>
-            <span className="font-semibold">Dias que entrega:</span> {detailDays.origenLabel}
-          </p>
-          <p>
-            <span className="font-semibold">Dias a cambio:</span> {detailDays.destinoLabel}
-          </p>
-        </div>
-
-        {cleanMotivo && <p className="mt-2 text-xs text-[color:var(--ink-soft)]">Motivo: {cleanMotivo}</p>}
-
-        {item.estado === "pendiente" && section === "recibidas" && (
-          <div className="mt-3 flex gap-2">
+        <div className="flex items-center justify-between gap-2">
+          {isExpanded ? (
+            <div className="min-w-0 flex-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 2v3M14 2v3M3 8h14" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 5h12a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Z" />
+                </svg>
+                <span>{createdLabel}</span>
+              </span>
+            </div>
+          ) : (
             <button
               type="button"
-              onClick={() => void handleRequestAction(item.id, "accept")}
-              disabled={isTransitioning || submitBusy}
-              className="glass-button glass-button-success inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => toggleExpandedRequest(item.id)}
+              className="min-w-0 flex-1 text-left"
+              aria-expanded={isExpanded}
             >
-              {isAccepting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-              {isAccepting ? "Aceptando..." : "Aceptar"}
+              <div className="flex items-center gap-2 overflow-hidden">
+                {showUnifiedSwapPill ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-teal-300 bg-teal-100 px-2.5 py-1 text-[11px] font-semibold text-teal-800 dark:border-teal-500/60 dark:bg-teal-900/35 dark:text-teal-100">
+                    <span>↑↓</span>
+                    <span>{dayLabel(entregaDays)}</span>
+                  </span>
+                ) : (
+                  <>
+                    {entregaDays > 0 && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-cyan-300 bg-cyan-100 px-2.5 py-1 text-[11px] font-semibold text-cyan-800 dark:border-cyan-500/60 dark:bg-cyan-900/35 dark:text-cyan-100">
+                        <span>↑</span>
+                        <span>{dayLabel(entregaDays)}</span>
+                      </span>
+                    )}
+                    {cambioDays > 0 && (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/35 dark:text-amber-100">
+                        <span>↓</span>
+                        <span>{dayLabel(cambioDays)}</span>
+                      </span>
+                    )}
+                    {entregaDays === 0 && cambioDays === 0 && (
+                      <span className="inline-flex shrink-0 items-center rounded-full border border-[var(--color-surface-border)] bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[var(--primary-200)]">
+                        Sin días
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
             </button>
+          )}
+
+          <div className="ml-2 flex shrink-0 items-center gap-2">
+            {!isExpanded && (
+              <span className="max-w-[9rem] truncate whitespace-nowrap rounded-full border border-[var(--color-surface-border)] bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-[var(--primary-50)]">
+                {counterpartName}
+              </span>
+            )}
+            <span
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-[11px] ${statusPillClass}`}
+              title={pillLabel}
+            >
+              {statusIcon}
+            </span>
             <button
               type="button"
-              onClick={() => void handleRequestAction(item.id, "reject")}
-              disabled={isTransitioning || submitBusy}
-              className="glass-button glass-button-danger inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => toggleExpandedRequest(item.id)}
+              className="inline-flex h-8 min-w-10 items-center justify-center rounded-full border border-[var(--color-surface-border)] px-3 text-[var(--primary-300)]/85 transition hover:bg-white/10 hover:text-white"
+              aria-label={isExpanded ? "Reducir detalle" : "Expandir detalle"}
+              aria-expanded={isExpanded}
             >
-              {isRejecting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" />}
-              {isRejecting ? "Rechazando..." : "Rechazar"}
+              <svg
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? "rotate-180" : "rotate-0"}`}
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.7}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" />
+              </svg>
             </button>
           </div>
-        )}
-      </div>
-    );
-  };
+        </div>
 
-  const renderGroup = (group: RequestGroup, section: ExchangeSection) => {
-    const representative = group.items[0];
-    if (!representative) {
-      return null;
-    }
+        <div
+          className={`overflow-hidden transition-[max-height,opacity,transform,margin] duration-300 ease-out ${
+            isExpanded
+              ? "mt-3 max-h-[48rem] opacity-100 translate-y-0"
+              : "mt-0 max-h-0 opacity-0 -translate-y-1 pointer-events-none"
+          }`}
+        >
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-cyan-200 bg-cyan-100/60 p-3 dark:border-cyan-500/40 dark:bg-cyan-950/30">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">
+                  <span>↑</span>
+                  <span>{entregaHeaderLabel}</span>
+                </div>
+                <span className="rounded-full border border-cyan-300 bg-cyan-100 px-2 py-0.5 text-[10px] font-semibold text-cyan-800 dark:border-cyan-500/60 dark:bg-cyan-900/35 dark:text-cyan-100">
+                  TÚ
+                </span>
+              </div>
+              <p className="mt-2 text-[13px] font-semibold text-[color:var(--ink)] leading-tight">{entregaDetailLabel}</p>
+            </div>
 
-    const daySummary = buildRequestDaySummary(representative, group.items);
+            <div className="rounded-2xl border border-amber-200 bg-amber-100/60 p-3 dark:border-amber-500/40 dark:bg-amber-950/30">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
+                  <span>↓</span>
+                  <span>{cambioHeaderLabel}</span>
+                </div>
+                <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/35 dark:text-amber-100">
+                  {counterpartName}
+                </span>
+              </div>
+              <p className="mt-2 text-[13px] font-semibold text-[color:var(--ink)] leading-tight">{cambioDetailLabel}</p>
+            </div>
+          </div>
 
-    return (
-      <div
-        key={group.groupId}
-        className={`rounded-xl border p-3 ${
-          section === "recibidas"
-            ? "border-cyan-200 bg-[color:var(--glass-surface-3)] dark:border-cyan-500/45"
-            : "border-indigo-200 bg-[color:var(--glass-surface-3)] dark:border-indigo-500/45"
-        }`}
-      >
-        <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ink-soft)]">
-          Solicitud agrupada · {group.items.length} dia(s)
-        </p>
-        <div className="mt-2">
-          {renderRequestItem(
-            representative,
-            section,
-            group.items.length,
-            `group-${group.groupId}`,
-            daySummary,
+          {cleanMotivo && (
+            <p className="mt-3 text-[12px] text-[color:var(--ink-soft)]">Motivo: {cleanMotivo}</p>
+          )}
+
+          {item.estado === "pendiente" && section === "recibidas" && (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleRequestAction(item.id, "accept")}
+                  disabled={isTransitioning || submitBusy}
+                  className="glass-button glass-button-success inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isAccepting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+                  {isAccepting ? "Aceptando..." : "Aceptar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleRequestAction(item.id, "reject")}
+                  disabled={isTransitioning || submitBusy}
+                  className="glass-button glass-button-danger inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isRejecting && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" />}
+                  {isRejecting ? "Rechazando..." : "Rechazar"}
+                </button>
+              </div>
+
+              <div className="glass-soft rounded-lg border border-[var(--color-surface-border)] px-2.5 py-2 text-[10px] sm:ml-auto sm:max-w-[16.5rem]">
+                <p className="mt-1 text-[var(--primary-200)]">
+                  <span className="font-semibold text-[var(--primary-50)]">
+                    {formatCurrentCompactSummary(counterpartName, baseBalance.me_deben, baseBalance.debo)}
+                  </span>
+                  {", Si aceptas "}
+                  <span className="font-semibold text-[var(--primary-50)]">
+                    {formatProjectedCompactSummary(projectedBalance.me_deben, projectedBalance.debo)}
+                  </span>
+                  .
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -884,48 +1636,30 @@ export const ExchangesPage = () => {
   return (
     <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
       <article className="glass-card float-in p-5 md:p-6">
-        <h2 className="text-2xl font-bold text-slate-900">Nueva solicitud</h2>
-
-        <div className={`mt-4 ${panelCardClass}`}>
-          <WeekSelector
-            weeks={myWeekOptions}
-            selectedWeekId={selectedWeekId}
-            onChange={setSelectedWeekId}
-            label="Semana activa para intercambio (mis semanas)"
-          />
-          {selectedWeek ? (
-            <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-500/60 dark:bg-slate-900/45 dark:text-slate-100">
-              {formatWeek(selectedWeek)}
-            </p>
-          ) : (
-            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-500/60 dark:bg-red-900/35 dark:text-red-100">
-              No hay semana activa seleccionada.
-            </p>
-          )}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Nueva solicitud</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNewRequestOpen((current) => !current)}
+            className="glass-button glass-button-secondary inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold md:hidden"
+          >
+            {newRequestOpen ? "Ocultar solicitud" : "Nueva solicitud"}
+          </button>
         </div>
 
-        <form className="mt-4 space-y-3.5" onSubmit={handleSubmit}>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <div className={summaryCardClass}>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Tus dias seleccionados</p>
-              <p className="text-lg font-bold text-slate-900">{selectedOriginCount}</p>
-            </div>
-            <div className={summaryCardClass}>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Dias companero</p>
-              <p className="text-lg font-bold text-slate-900">{isBolsaMode ? "No aplica" : selectedDestinationCount}</p>
-            </div>
-            <div className={summaryCardClass}>
-              <p className="text-xs uppercase tracking-wide text-slate-500">Modo actual</p>
-              <p className="text-lg font-bold text-slate-900">{form.modo_compensacion}</p>
-            </div>
-          </div>
-
-          <label className="block text-sm text-slate-700">
-            Companero receptor
-            <select
+        <form
+          className={`mt-4 space-y-3.5 ${newRequestOpen ? "block" : "hidden"} md:block`}
+          onSubmit={handleSubmit}
+        >
+          <div className="block text-sm text-[var(--primary-200)]">
+            Compañero receptor
+            <CustomSelect
               value={form.receptor_id}
-              onChange={(event) => {
-                const receptorId = event.target.value;
+              onChange={(val) => {
+                setShowSubmitTip(true);
+                const receptorId = String(val);
                 setForm((current) => ({
                   ...current,
                   receptor_id: receptorId,
@@ -948,86 +1682,110 @@ export const ExchangesPage = () => {
                   return companionWeekOptions[0]?.id ?? "";
                 });
               }}
-              className={formControlClass}
-              required
-            >
-              <option value="">Selecciona usuario</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
+              options={[
+                ...receptorOptions
+              ]}
+              className="mt-2"
+            />
+          </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="block text-sm text-slate-700">
-              Tipo
-              <select
-                value={form.tipo}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    tipo: event.target.value,
-                    asignacion_origen_id: "",
-                    asignacion_destino_id: "",
-                  }))
-                }
-                className={formControlClass}
-              >
-                <option value="dia">Dia</option>
-                <option value="semana">Semana</option>
-              </select>
-            </label>
+            <div className="block text-sm text-[var(--primary-200)]">
+              <div className="mb-2 text-sm font-semibold">Tipo</div>
+              <div className="inline-flex rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-1">
+                {(["dia", "semana"] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setShowSubmitTip(true);
+                      setForm((current) => ({
+                        ...current,
+                        tipo: option,
+                        asignacion_origen_id: "",
+                        asignacion_destino_id: "",
+                      }));
+                    }}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      form.tipo === option
+                        ? "bg-[var(--color-surface-bright)] text-white"
+                        : "text-[var(--primary-300)] hover:text-white"
+                    }`}
+                  >
+                    {option === "dia" ? "Día" : "Semana"}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            <label className="block text-sm text-slate-700">
-              Modo de compensacion
-              <select
-                value={form.modo_compensacion}
-                onChange={(event) => {
-                  setSelectedDestinationIds([]);
-                  setForm((current) => ({
-                    ...current,
-                    modo_compensacion: event.target.value,
-                    asignacion_destino_id: "",
-                  }));
-                }}
-                className={formControlClass}
-              >
-                <option value="bolsa">Bolsa</option>
-                <option value="inmediata">Inmediata</option>
-              </select>
-            </label>
+            <div className="block text-sm text-[var(--primary-200)]">
+              <div className="mb-2 text-sm font-semibold">Modo de compensacion</div>
+              <div className="inline-flex rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-1">
+                {(["bolsa", "inmediata"] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setShowSubmitTip(true);
+                      setSelectedDestinationIds([]);
+                      setForm((current) => ({
+                        ...current,
+                        modo_compensacion: option,
+                        asignacion_destino_id: "",
+                      }));
+                    }}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      form.modo_compensacion === option
+                        ? "bg-[var(--color-surface-bright)] text-white"
+                        : "text-[var(--primary-300)] hover:text-white"
+                    }`}
+                  >
+                    {option === "bolsa" ? "Bolsa" : "Inmediata"}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-3 lg:grid-cols-2">
             <div className={panelCardClass}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-200)]">
                 {form.tipo === "dia"
                   ? "Tus turnos (selecciona los dias que quieras)"
-                  : "Tu semana (selecciona referencia)"}
+                  : "Selecciona tu semana para intercambio"}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-[var(--primary-400)]">
                 {form.tipo === "dia"
-                  ? "Los dias pueden ser no consecutivos."
-                  : "Se intercambia la semana completa al aceptar."}
+                  ? "Selecciona primero una semana y luego elige tus dias." 
+                  : "Selecciona una de tus semanas disponibles para intercambiar."}
               </p>
-              <div className="mt-2 space-y-2">
-                {filteredMyAssignments.length === 0 && (
-                  <p className="text-xs text-slate-500">
-                    No tienes turnos disponibles en esta semana para intercambiar.
+
+              <div className="mt-3">
+                <WeekSelector
+                  weeks={myWeekOptions}
+                  selectedWeekId={selectedWeekId}
+                  onChange={(weekId) => {
+                    setShowSubmitTip(true);
+                    setSelectedWeekId(weekId);
+                  }}
+                  label=""
+                  formatOption={formatWeekSelectLabel}
+                />
+                {!selectedWeek && (
+                  <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-500/60 dark:bg-red-900/35 dark:text-red-100">
+                    No tienes una semana activa disponible.
                   </p>
                 )}
-                {form.tipo === "semana"
-                  ? weekOriginAssignments.map((assignment) => (
-                      <div
-                        key={assignment.id}
-                        className={`${selectChipClass} glass-chip-active`}
-                      >
-                        {formatAssignment(assignment)}
-                      </div>
-                    ))
-                  : filteredMyAssignments.map((assignment) => {
+              </div>
+
+              {form.tipo === "dia" && (
+                <div className="mt-2 space-y-2">
+                  {filteredMyAssignments.length === 0 ? (
+                    <p className="text-xs text-[var(--primary-400)]">
+                      No tienes turnos disponibles en esta semana para intercambiar.
+                    </p>
+                  ) : (
+                    filteredMyAssignments.map((assignment) => {
                       const isSelected = selectedOriginIds.includes(assignment.id);
 
                       return (
@@ -1040,23 +1798,26 @@ export const ExchangesPage = () => {
                           {formatAssignment(assignment)}
                         </button>
                       );
-                    })}
-              </div>
+                    })
+                  )}
+                </div>
+              )}
+
               {form.tipo === "dia" && selectedOriginIds.length > 0 && (
-                <p className="mt-2 text-xs text-slate-600">
+                <p className="mt-2 text-xs text-[var(--primary-300)]">
                   Seleccionados ({selectedOriginIds.length}): {selectedOriginAssignments.map((item) => item.dia).join(", ")}
                 </p>
               )}
             </div>
 
             <div className={panelCardClass}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary-200)]">
                 {selectedCompanion
                   ? `Turnos de ${selectedCompanion.nombre}`
-                  : "Turnos del companero seleccionado"}
+                  : "Turnos del compañero seleccionado"}
               </p>
 
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-[var(--primary-400)]">
                 {form.modo_compensacion === "inmediata"
                   ? form.tipo === "dia"
                     ? "Compensacion inmediata por dia: selecciona la misma cantidad de turnos tuyos y del companero."
@@ -1065,8 +1826,15 @@ export const ExchangesPage = () => {
               </p>
 
               {isBolsaMode ? (
-                <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:border-blue-500/60 dark:bg-blue-900/35 dark:text-blue-100">
-                  En Bolsa no se permite elegir destinos. Tu companero recibe tu solicitud y, si acepta, quedara reflejada la deuda en la bolsa.
+                <div className="mt-3 rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-4 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-100">
+                  {companionBalanceLoadFailed && (
+                    <p className="mt-2 text-[12px] font-semibold text-amber-700 dark:text-amber-300">
+                      No se pudo refrescar el saldo individual ahora mismo. Mostrando el ultimo saldo disponible.
+                    </p>
+                  )}
+                  <p className="font-semibold">Saldo actual: {formatBalanceText(bolsaCurrentOwed, bolsaCurrentDebt)}.</p>
+                  <p className="mt-2 font-semibold">Saldo futuro: {formatBalanceText(bolsaFutureOwed, bolsaFutureDebt)}.</p>
+                  <p className="mt-2 text-[13px] text-zinc-500 dark:text-zinc-400">Tu compañero recibe la solicitud y, si acepta, la deuda se refleja en la bolsa.</p>
                 </div>
               ) : (
                 <>
@@ -1075,50 +1843,31 @@ export const ExchangesPage = () => {
                       <WeekSelector
                         weeks={companionWeekOptions}
                         selectedWeekId={companionWeekId}
-                        onChange={setCompanionWeekId}
-                        label={
-                          form.tipo === "semana"
-                            ? "Semana del companero (se intercambia completa)"
-                            : "Semana del companero"
-                        }
+                        onChange={(weekId) => {
+                          setShowSubmitTip(true);
+                          setCompanionWeekId(weekId);
+                        }}
+                        label=""
+                        formatOption={formatWeekSelectLabel}
                       />
                       {loadingCompanionWeeks && (
-                        <p className="mt-1 text-xs text-slate-500">Cargando semanas del companero...</p>
+                        <p className="mt-1 text-xs text-[var(--primary-400)]">Cargando semanas del companero...</p>
                       )}
-                      {selectedCompanionWeek ? (
-                        <p className="mt-1 text-xs text-slate-500">{formatWeek(selectedCompanionWeek)}</p>
-                      ) : (
-                        <p className="mt-1 text-xs text-slate-500">Este companero no tiene semanas con turnos.</p>
-                      )}
-                    </div>
-                  )}
-
-                  {form.receptor_id && form.tipo === "semana" && (
-                    <div className="glass-soft mt-2 px-3 py-2 text-xs text-slate-600">
-                      Semana propia: {selectedWeek ? formatWeek(selectedWeek) : "sin semana activa"}. Semana companero: {selectedCompanionWeek ? formatWeek(selectedCompanionWeek) : "sin semana seleccionada"}. En modo semanal se preseleccionan todos los dias de ambas semanas.
                     </div>
                   )}
 
                   <div className="mt-2 space-y-2">
                     {!form.receptor_id && (
-                      <p className="text-xs text-slate-500">Selecciona un companero para ver sus turnos.</p>
+                      <p className="text-xs text-[var(--primary-400)]">Selecciona un compañero para ver sus turnos.</p>
                     )}
                     {form.receptor_id && loadingCompanionAssignments && (
-                      <p className="text-xs text-slate-500">Cargando turnos del companero...</p>
+                      <p className="text-xs text-[var(--primary-400)]">Cargando turnos del compañero...</p>
                     )}
-                    {form.receptor_id && !loadingCompanionAssignments && destinationOptions.length === 0 && companionWeekOptions.length > 0 && (
-                      <p className="text-xs text-slate-500">Este companero no tiene turnos en la semana seleccionada.</p>
+                    {form.receptor_id && !loadingCompanionAssignments && form.tipo === "dia" && destinationOptions.length === 0 && companionWeekOptions.length > 0 && (
+                      <p className="text-xs text-[var(--primary-400)]">Este compañero no tiene turnos en la semana seleccionada.</p>
                     )}
-                    {form.tipo === "semana"
-                      ? weekDestinationAssignments.map((assignment) => (
-                          <div
-                            key={assignment.id}
-                            className={`${selectChipClass} glass-chip-active`}
-                          >
-                            {formatAssignment(assignment)}
-                          </div>
-                        ))
-                      : destinationOptions.map((assignment) => {
+                    {form.tipo === "dia"
+                      ? destinationOptions.map((assignment) => {
                           const isSelected = selectedDestinationIds.includes(assignment.id);
 
                           return (
@@ -1131,11 +1880,12 @@ export const ExchangesPage = () => {
                               {formatAssignment(assignment)}
                             </button>
                           );
-                        })}
+                        })
+                      : null}
                   </div>
 
                   {form.tipo === "dia" && selectedDestinationIds.length > 0 && (
-                    <p className="mt-2 text-xs text-slate-600">
+                    <p className="mt-2 text-xs text-[var(--primary-300)]">
                       Destinos seleccionados ({selectedDestinationIds.length}): {selectedDestinationAssignments.map((item) => item.dia).join(", ")}
                     </p>
                   )}
@@ -1144,33 +1894,41 @@ export const ExchangesPage = () => {
             </div>
           </div>
 
-          <label className="block text-sm text-slate-700">
+          <label className="block text-sm text-[var(--primary-200)]">
             Motivo
             <textarea
               value={form.motivo}
-              onChange={(event) => setForm((current) => ({ ...current, motivo: event.target.value }))}
+              onChange={(event) => {
+                setShowSubmitTip(true);
+                setForm((current) => ({ ...current, motivo: event.target.value }));
+              }}
               className={textAreaControlClass}
             />
           </label>
 
-          <NoticeBanner
-            message={
-              isBolsaMode
-                ? "Modo bolsa: solo seleccionas tus turnos. No se permite elegir destino."
-                : form.tipo === "dia"
-                  ? "Modo dia: puedes seleccionar 1..N dias y se enviara una unica peticion."
-                  : "Modo semana: se preseleccionan automaticamente todos los dias de tu semana y de la semana elegida del companero."
-            }
-            kind="info"
-          />
-
-          <button
-            type="submit"
-            disabled={submitBusy}
-            className="glass-button glass-button-primary h-11 rounded-lg px-6 text-base font-semibold disabled:opacity-50"
-          >
-            {submitBusy ? "Enviando..." : "Enviar solicitud"}
-          </button>
+          <div className="grid items-center gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="flex flex-wrap gap-2 text-[11px] text-[var(--primary-400)]">
+              <span className="glass-badge rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--primary-400)]">
+                Tus dias: <span className="ml-1 text-[var(--primary-50)] font-bold">{selectedOriginCount}</span>
+              </span>
+              <span className="glass-badge rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--primary-400)]">
+                Dias companero: <span className="ml-1 text-[var(--primary-50)] font-bold">{isBolsaMode ? "No aplica" : selectedDestinationCount}</span>
+              </span>
+              <span className="glass-badge rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--primary-400)]">
+                Modo actual: <span className="ml-1 text-[var(--primary-50)] font-bold">{form.modo_compensacion}</span>
+              </span>
+            </div>
+            <button
+              type="submit"
+              disabled={isSubmitDisabled}
+              className="glass-button glass-button-primary h-11 rounded-lg px-6 text-base font-semibold disabled:opacity-50"
+            >
+              {submitBusy ? "Enviando..." : "Enviar solicitud"}
+            </button>
+          </div>
+          {visibleSubmitTip && (
+            <NoticeBanner message={visibleSubmitTip} kind="warning" />
+          )}
         </form>
 
         <div className="mt-3 space-y-2">
@@ -1179,57 +1937,109 @@ export const ExchangesPage = () => {
         </div>
       </article>
 
-      <article className="glass-card float-in space-y-5 p-5 md:p-6">
-        <div className="glass-panel glass-interactive border-cyan-200 bg-cyan-50/60 p-4 dark:border-cyan-500/55 dark:bg-cyan-900/20">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-xl font-bold text-[color:var(--ink)]">
-                Recibidas <span className="text-base font-semibold text-[color:var(--ink-soft)]">({receivedCount})</span>
-              </h3>
-              <p className="mt-1 text-xs text-[color:var(--ink-soft)]">
-                {pendingReceivedCount > 0
-                  ? "Prioriza las pendientes para desbloquear cambios en el calendario."
-                  : "Sin acciones pendientes en este bloque."}
-              </p>
+      <article className="glass-card float-in space-y-5 p-5 md:p-6 xl:self-start">
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-xl font-bold text-[color:var(--ink)]">Bolsa</h3>
+            <p className="mt-1 text-xs text-[color:var(--ink-soft)]">
+              Días que debemos y días que nos deben en tus intercambios.
+            </p>
+          </div>
+          <div className="grid w-full grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedSummary((current) => (current === "owed" ? null : "owed"))}
+                className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                  selectedSummary === "owed"
+                    ? "bg-zinc-700 border-zinc-500 text-white shadow-sm"
+                    : "bg-zinc-900/60 border border-zinc-700 text-zinc-100 hover:bg-zinc-800 hover:text-white"
+                }`}
+              >
+                <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-400">Nos deben</p>
+                <p className="mt-1 text-lg font-semibold">{owedDays} días</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedSummary((current) => (current === "debt" ? null : "debt"))}
+                className={`w-full rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                  selectedSummary === "debt"
+                    ? "bg-zinc-700 border-zinc-500 text-white shadow-sm"
+                    : "bg-zinc-900/60 border border-zinc-700 text-zinc-100 hover:bg-zinc-800 hover:text-white"
+                }`}
+              >
+                <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-400">Debemos</p>
+                <p className="mt-1 text-lg font-semibold">{debtDays} días</p>
+              </button>
             </div>
-            <span className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">
-              Por responder: {pendingReceivedCount}
-            </span>
           </div>
-          <div className="mt-3 max-h-[38vh] space-y-3 overflow-y-auto pr-1">
-            {groupedReceived.groups.length === 0 && groupedReceived.singles.length === 0 && (
-              <p className="text-sm text-[color:var(--ink-soft)]">No tienes solicitudes recibidas.</p>
-            )}
 
-            {groupedReceived.groups.map((group) => renderGroup(group, "recibidas"))}
-            {groupedReceived.singles.map((item) => renderRequestItem(item, "recibidas"))}
-          </div>
+          {selectedSummary === "owed" && (
+            <div className="mt-4 rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm text-[color:var(--ink)] dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-100">
+              {owedByWorker.length === 0 ? (
+                <p className="text-[color:var(--ink-soft)]">No hay trabajadores que nos deban días.</p>
+              ) : (
+                <div className="space-y-2">
+                  {owedByWorker.map((entry) => (
+                    <p key={entry.name} className="flex items-center justify-between gap-3 text-sm">
+                      <span>{entry.name}</span>
+                      <span className="font-semibold">{entry.days} días</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedSummary === "debt" && (
+            <div className="mt-4 rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm text-[color:var(--ink)] dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-100">
+              {debtByWorker.length === 0 ? (
+                <p className="text-[color:var(--ink-soft)]">No debes días a ningún trabajador.</p>
+              ) : (
+                <div className="space-y-2">
+                  {debtByWorker.map((entry) => (
+                    <p key={entry.name} className="flex items-center justify-between gap-3 text-sm">
+                      <span>{entry.name}</span>
+                      <span className="font-semibold">{entry.days} días</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+        <div className="inline-flex rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-1 text-sm">
+          {(["recibidas", "enviadas"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setSelectedExchangeTab(option)}
+              className={`rounded-full px-4 py-2 font-semibold transition ${
+                selectedExchangeTab === option
+                  ? "bg-[var(--color-surface-bright)] text-white"
+                  : "text-[var(--primary-300)] hover:text-white"
+              }`}
+            >
+              {option === "recibidas" ? `Recibidas (${receivedCount})` : `Enviadas (${sentCount})`}
+            </button>
+          ))}
         </div>
 
-        <div className="glass-panel glass-interactive border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-500/55 dark:bg-indigo-900/20">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-xl font-bold text-[color:var(--ink)]">
-                Enviadas <span className="text-base font-semibold text-[color:var(--ink-soft)]">({sentCount})</span>
-              </h3>
-              <p className="mt-1 text-xs text-[color:var(--ink-soft)]">
-                {pendingSentCount > 0
-                  ? "Estas solicitudes siguen en espera de respuesta del companero."
-                  : "No hay solicitudes en espera en este bloque."}
-              </p>
-            </div>
-            <span className="glass-badge rounded-full px-2.5 py-1 text-xs font-semibold text-slate-700">
-              En espera: {pendingSentCount}
-            </span>
-          </div>
-          <div className="mt-3 max-h-[38vh] space-y-3 overflow-y-auto pr-1">
-            {groupedSent.groups.length === 0 && groupedSent.singles.length === 0 && (
-              <p className="text-sm text-[color:var(--ink-soft)]">No has enviado solicitudes.</p>
-            )}
-
-            {groupedSent.groups.map((group) => renderGroup(group, "enviadas"))}
-            {groupedSent.singles.map((item) => renderRequestItem(item, "enviadas"))}
-          </div>
+        <div className="mt-3 space-y-3 max-h-[58vh] overflow-y-auto pr-1 xl:mt-4 xl:max-h-[calc(100dvh-14rem)]">
+          {selectedExchangeTab === "recibidas" ? (
+            <>
+              {receivedDisplayItems.length === 0 && (
+                <p className="text-sm text-[color:var(--ink-soft)]">No tienes solicitudes recibidas.</p>
+              )}
+              {receivedDisplayItems.map((item) => renderRequestItem(item, "recibidas", expandedRequestIds.has(item.id)))}
+            </>
+          ) : (
+            <>
+              {sentDisplayItems.length === 0 && (
+                <p className="text-sm text-[color:var(--ink-soft)]">No has enviado solicitudes.</p>
+              )}
+              {sentDisplayItems.map((item) => renderRequestItem(item, "enviadas", expandedRequestIds.has(item.id)))}
+            </>
+          )}
         </div>
       </article>
     </section>

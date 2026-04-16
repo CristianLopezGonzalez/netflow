@@ -151,8 +151,8 @@ export const MonthlyViewPage = () => {
   return (
     <section className="space-y-4">
       <article className="glass-card float-in p-5">
-        <h2 className="text-xl font-bold text-slate-900">Vista mensual</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="text-xl font-bold">Vista mensual</h2>
+        <p className="mt-1 text-sm text-[var(--primary-400)]">
           Se muestran todos los dias del mes. Los dias fuera de semanas creadas se mantienen visibles
           como vacios para que el calendario mensual siempre sea completo.
         </p>
@@ -172,11 +172,11 @@ export const MonthlyViewPage = () => {
         return (
           <article key={monthKey} className="glass-card float-in p-5">
             <header className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-              <h3 className="text-xl font-bold capitalize text-slate-900">
+              <h3 className="text-xl font-bold capitalize">
                 {monthTitleFormatter.format(new Date(Date.UTC(year, monthIndex, 1)))}
               </h3>
-              <p className="text-sm font-medium text-slate-600">
-                Dias con turno asignado: <span className="font-bold text-teal-700">{assignedCount}</span>
+              <p className="text-sm font-medium text-[var(--primary-400)]">
+                Dias con turno asignado: <span className="font-bold text-teal-400">{assignedCount}</span>
               </p>
             </header>
 
@@ -184,7 +184,7 @@ export const MonthlyViewPage = () => {
               {weekdayHeader.map((label) => (
                 <div
                   key={`${monthKey}-${label}`}
-                  className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-center text-xs font-semibold uppercase tracking-wide text-slate-600"
+                  className="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-2 py-1 text-center text-[10px] font-black uppercase tracking-wider text-[var(--primary-500)]"
                 >
                   {label}
                 </div>
@@ -197,7 +197,7 @@ export const MonthlyViewPage = () => {
                   return (
                     <div
                       key={`${monthKey}-empty-${index}`}
-                      className="min-h-24 rounded-xl border border-dashed border-slate-200 bg-white/40"
+                      className="min-h-24 rounded-xl border border-dashed border-[var(--color-surface-border)] bg-[var(--color-background)]/40"
                     />
                   );
                 }
@@ -208,40 +208,49 @@ export const MonthlyViewPage = () => {
                 const hasAssignments = assignments.length > 0;
 
                 const stateClasses = hasAssignments
-                  ? "border-teal-400 bg-teal-50 text-teal-900"
+                  ? "border-teal-500/50 bg-teal-500/10 text-teal-100"
                   : hasCoverage
-                    ? "border-slate-300 bg-slate-50 text-slate-800"
-                    : "border-slate-200 bg-white text-slate-500";
+                    ? "border-[var(--color-surface-border)] bg-[var(--color-surface-hover)] text-[var(--primary-200)]"
+                    : "border-[var(--color-surface-border)] bg-[var(--color-background)]/60 text-[var(--primary-500)]";
 
                 return (
                   <div
                     key={`${monthKey}-${iso}`}
-                    className={`min-h-24 rounded-xl border p-2 ${stateClasses}`}
+                    className={`min-h-24 rounded-xl border p-2 transition-all ${stateClasses}`}
                   >
-                    <p className="text-[11px] font-semibold uppercase tracking-wide">
-                      {weekdayFormatter.format(cell).replace(".", "")}
-                    </p>
-                    <p className="text-sm font-bold">{cell.getUTCDate()}</p>
-                    <p className="text-[11px] text-slate-500">
+                    <div className="flex justify-between items-start">
+                      <p className="text-[10px] font-black uppercase tracking-wide opacity-50">
+                        {weekdayFormatter.format(cell).replace(".", "")}
+                      </p>
+                      <p className="text-xs font-bold">{cell.getUTCDate()}</p>
+                    </div>
+                    <p className="text-[9px] font-medium opacity-40 uppercase tracking-tighter">
                       {monthCellFormatter.format(cell).replace(".", "")}
                     </p>
 
                     {hasAssignments ? (
-                      <div className="mt-1 space-y-1">
-                        <p className="text-[11px] font-semibold text-teal-700">Asignado</p>
+                      <div className="mt-2 space-y-1">
+                        <div className="flex gap-1 items-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-teal-400"></div>
+                          <p className="text-[10px] font-bold text-teal-400">Asignado</p>
+                        </div>
                         {assignments.slice(0, 2).map((assignment) => (
-                          <p key={assignment.id} className="mono text-[11px] text-teal-800">
+                          <p key={assignment.id} className="mono text-[9px] font-semibold text-teal-200/80">
                             {assignment.hora_inicio.slice(0, 5)}-{assignment.hora_fin.slice(0, 5)}
                           </p>
                         ))}
                         {assignments.length > 2 && (
-                          <p className="text-[11px] font-semibold text-teal-700">
-                            +{assignments.length - 2} turno(s)
+                          <p className="text-[9px] font-black text-teal-400">
+                            +{assignments.length - 2} TURNOS
                           </p>
                         )}
                       </div>
                     ) : (
-                      <p className="mt-1 text-[11px]">{hasCoverage ? "Semana creada" : "Sin semana"}</p>
+                      <div className="mt-2">
+                        <p className="text-[9px] font-black uppercase tracking-tight opacity-30">
+                          {hasCoverage ? "Semana Creada" : "Sin Semana"}
+                        </p>
+                      </div>
                     )}
                   </div>
                 );

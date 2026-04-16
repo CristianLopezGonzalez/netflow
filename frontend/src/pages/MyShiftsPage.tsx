@@ -17,8 +17,8 @@ export const MyShiftsPage = () => {
     <section className="glass-card float-in space-y-4 p-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Mis tardes</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="text-xl font-bold">Mis tardes</h2>
+          <p className="mt-1 text-sm text-[var(--primary-400)]">
             Tus turnos asignados e intercambiados para la semana seleccionada.
           </p>
         </div>
@@ -35,17 +35,17 @@ export const MyShiftsPage = () => {
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {filteredAssignments.length === 0 && (
-          <p className="text-sm text-slate-500">No tienes turnos en este filtro.</p>
+          <p className="text-sm text-[var(--primary-400)]">No tienes turnos en este filtro.</p>
         )}
 
         {filteredAssignments.map((item) => (
-          <article key={item.id} className="rounded-2xl border border-slate-300 bg-white p-4">
-            <p className="mono text-xs uppercase tracking-wider text-slate-500">{item.estado}</p>
-            <p className="mt-2 text-lg font-semibold text-slate-900">{item.dia}</p>
-            <p className="text-sm text-slate-600">
+          <article key={item.id} className="panel p-4">
+            <p className="mono text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-300)]">{item.estado}</p>
+            <p className="mt-2 text-lg font-bold text-[var(--primary-50)]">{item.dia}</p>
+            <p className="text-sm text-[var(--primary-400)]">
               {item.hora_inicio.slice(0, 5)} - {item.hora_fin.slice(0, 5)}
             </p>
-            <p className="mt-2 text-xs text-slate-500">Semana ID: {item.semana}</p>
+            <p className="mt-2 text-[10px] font-medium text-[var(--primary-400)]">Semana ID: {item.semana}</p>
           </article>
         ))}
       </div>

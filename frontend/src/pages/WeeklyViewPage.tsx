@@ -4,10 +4,36 @@ import type { FormEvent } from "react";
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
 import { WeekSelector } from "../components/common/WeekSelector";
+import CustomSelect from "../components/common/CustomSelect";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
-import type { Asignacion, GeneracionCalendarioResumen } from "../types";
-import { asErrorMessage, dayOrder, formatWeek } from "../utils/formatters";
+import type { Asignacion, GeneracionCalendarioResumen, Semana } from "../types";
+import { asErrorMessage, dayOrder } from "../utils/formatters";
+
+const parseIsoDate = (value: string): Date => {
+  const [year, month, day] = value.split("-").map((part) => Number.parseInt(part, 10));
+  return new Date(Date.UTC(year, month - 1, day));
+};
+
+const shortMonthFormatter = new Intl.DateTimeFormat("es-ES", {
+  month: "short",
+  timeZone: "UTC",
+});
+
+const formatWeekLabelWithoutNumber = (week: Semana): string => {
+  const start = parseIsoDate(week.fecha_inicio_semana);
+  const end = parseIsoDate(week.fecha_fin_semana);
+  const startDay = `${start.getUTCDate()}`.padStart(2, "0");
+  const endDay = `${end.getUTCDate()}`.padStart(2, "0");
+  const monthLabel = shortMonthFormatter.format(start).replace(".", "");
+
+  if (start.getUTCMonth() === end.getUTCMonth() && start.getUTCFullYear() === end.getUTCFullYear()) {
+    return `${startDay}-${endDay} ${monthLabel}`;
+  }
+
+  const endMonthLabel = monthNameFormatter.format(end).replace(".", "");
+  return `${startDay} ${monthLabel} - ${endDay} ${endMonthLabel}`;
+};
 
 const monthNameFormatter = new Intl.DateTimeFormat("es-ES", {
   month: "long",
@@ -15,7 +41,7 @@ const monthNameFormatter = new Intl.DateTimeFormat("es-ES", {
 });
 
 const monthOptions = Array.from({ length: 12 }, (_, index) => ({
-  value: index + 1,
+  value: (index + 1).toString(),
   label: monthNameFormatter.format(new Date(Date.UTC(2026, index, 1))),
 }));
 
@@ -183,8 +209,8 @@ export const WeeklyViewPage = () => {
     <section className="glass-card float-in space-y-4 p-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Turnos semanales de tarde</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <h2 className="text-xl font-bold">Turnos semanales de tarde</h2>
+          <p className="mt-1 text-sm text-[var(--primary-400)]">
             {selectedWeek ? `Estado: ${selectedWeek.estado}` : "No hay semana seleccionada."}
           </p>
         </div>
@@ -201,7 +227,7 @@ export const WeeklyViewPage = () => {
           <button
             type="button"
             onClick={() => void reloadWeekDetail(selectedWeekId)}
-            className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700"
+            className="glass-button h-10 rounded-lg px-4 text-sm font-semibold"
           >
             Actualizar
           </button>
@@ -209,17 +235,17 @@ export const WeeklyViewPage = () => {
       </div>
 
       {canCreateWeek && (
-        <form onSubmit={handleAutoGenerate} className="rounded-2xl border border-slate-300 bg-white/80 p-4">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">
+        <form onSubmit={handleAutoGenerate} className="glass-panel p-4">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">
             Generacion automatica
           </h3>
 
-          <div className="mt-3 inline-flex rounded-xl border border-slate-300 bg-white p-1">
+          <div className="mt-3 inline-flex rounded-xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-1">
             <button
               type="button"
               onClick={() => setAutoMode("mes")}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                autoMode === "mes" ? "bg-slate-900 text-white" : "text-slate-700"
+                autoMode === "mes" ? "bg-[var(--primary-700)] text-white shadow-sm" : "text-[var(--primary-400)] hover:text-white"
               }`}
             >
               Generar mes
@@ -228,7 +254,7 @@ export const WeeklyViewPage = () => {
               type="button"
               onClick={() => setAutoMode("anio")}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                autoMode === "anio" ? "bg-slate-900 text-white" : "text-slate-700"
+                autoMode === "anio" ? "bg-[var(--primary-700)] text-white shadow-sm" : "text-[var(--primary-400)] hover:text-white"
               }`}
             >
               Generar anio
@@ -236,7 +262,7 @@ export const WeeklyViewPage = () => {
           </div>
 
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <label className="block text-sm text-slate-700">
+            <label className="block text-sm text-[var(--primary-300)]">
               Anio
               <input
                 type="number"
@@ -249,34 +275,29 @@ export const WeeklyViewPage = () => {
                     anio: event.target.value,
                   }))
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                className="glass-input mt-1 w-full rounded-lg px-3 py-2"
                 required
               />
             </label>
 
             {autoMode === "mes" && (
-              <label className="block text-sm text-slate-700">
+              <div className="block text-sm text-[var(--primary-300)]">
                 Mes
-                <select
+                <CustomSelect
                   value={autoForm.mes}
-                  onChange={(event) =>
+                  onChange={(val) =>
                     setAutoForm((current) => ({
                       ...current,
-                      mes: event.target.value,
+                      mes: String(val),
                     }))
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-                >
-                  {monthOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  options={monthOptions}
+                  className="mt-1"
+                />
+              </div>
             )}
 
-            <label className="block text-sm text-slate-700">
+            <label className="block text-sm text-[var(--primary-300)]">
               Cantidad empleados
               <input
                 type="number"
@@ -299,90 +320,84 @@ export const WeeklyViewPage = () => {
                       : Math.max(1, availableEmployees.length || 1);
                   setAutoEmployeeCount(Math.max(1, Math.min(parsed, max)));
                 }}
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                className="glass-input mt-1 w-full rounded-lg px-3 py-2"
                 required
               />
-              <p className="mt-1 text-xs text-slate-500">
-                Empleados activos disponibles: {availableEmployeeCount}
+              <p className="mt-1 text-[10px] text-[var(--primary-500)] font-medium">
+                Disponibles: {availableEmployeeCount}
               </p>
             </label>
 
-            <label className="block text-sm text-slate-700">
+            <div className="block text-sm text-[var(--primary-300)]">
               Estado semanas
-              <select
+              <CustomSelect
                 value={autoForm.estado}
-                onChange={(event) =>
+                onChange={(val) =>
                   setAutoForm((current) => ({
                     ...current,
-                    estado: event.target.value as "borrador" | "publicado",
+                    estado: val as "borrador" | "publicado",
                   }))
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-              >
-                <option value="borrador">borrador</option>
-                <option value="publicado">publicado</option>
-              </select>
-            </label>
+                options={[
+                  { value: "borrador", label: "Borrador" },
+                  { value: "publicado", label: "Publicado" },
+                ]}
+                className="mt-1"
+              />
+            </div>
 
-            <label className="block text-sm text-slate-700">
+            <div className="block text-sm text-[var(--primary-300)]">
               Estrategia conflicto
-              <select
+              <CustomSelect
                 value={autoForm.estrategia_conflicto}
-                onChange={(event) =>
+                onChange={(val) =>
                   setAutoForm((current) => ({
                     ...current,
-                    estrategia_conflicto: event.target.value as "skip" | "replace",
+                    estrategia_conflicto: val as "skip" | "replace",
                   }))
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-              >
-                <option value="replace">replace (regenerar y sustituir)</option>
-                <option value="skip">skip (mantener existente)</option>
-              </select>
-            </label>
+                options={[
+                  { value: "replace", label: "Replace (sustituir)" },
+                  { value: "skip", label: "Skip (mantener)" },
+                ]}
+                className="mt-1"
+              />
+            </div>
           </div>
 
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: autoEmployeeCount }).map((_, index) => (
-              <label key={`auto-employee-${index}`} className="block text-sm text-slate-700">
+              <div key={`auto-employee-${index}`} className="block text-sm text-[var(--primary-300)]">
                 Empleado {index + 1}
-                <select
+                <CustomSelect
                   value={autoEmployeeIds[index] ?? ""}
-                  onChange={(event) =>
+                  onChange={(val) =>
                     setAutoEmployeeIds((current) => {
                       const next = [...current];
-                      next[index] = event.target.value;
+                      next[index] = String(val);
                       return next;
                     })
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-                  required
-                >
-                  <option value="">Selecciona empleado</option>
-                  {availableEmployees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.nombre}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  options={[
+                    { value: "", label: "Selecciona empleado" },
+                    ...availableEmployees.map(e => ({ value: e.id, label: e.nombre }))
+                  ]}
+                  className="mt-1"
+                />
+              </div>
             ))}
           </div>
 
-          <p className="mt-2 text-xs text-slate-500">
-            En anual puedes cambiar cantidad o lista de empleados y regenerar en cualquier momento.
-            Si eliges replace, se recalcula la rotacion completa de las semanas objetivo.
-          </p>
-          <p className="text-xs text-slate-500">
-            Solo se permiten usuarios con rol empleado. Si necesitas seleccionar mas de {availableEmployeeCount},
-            primero crea/activa mas empleados.
+          <p className="mt-3 text-[10px] text-[var(--primary-500)] font-medium max-w-2xl">
+            En anual puedes cambiar cantidad o lista de empleados y regenerar.
+            Replace recalcula la rotacion completa. Solo se permiten usuarios con rol empleado.
           </p>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
               type="submit"
               disabled={autoBusy}
-              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+              className="glass-button glass-button-primary rounded-lg px-6 py-2.5 text-sm font-bold disabled:opacity-50"
             >
               {autoBusy
                 ? "Generando..."
@@ -392,36 +407,36 @@ export const WeeklyViewPage = () => {
             </button>
           </div>
 
-          <div className="mt-3 space-y-2">
+          <div className="mt-4 space-y-2">
             <NoticeBanner message={autoError} kind="error" />
             <NoticeBanner message={autoNotice} kind="success" />
           </div>
 
           {autoSummary && (
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-              <p className="font-semibold text-slate-900">
-                Resumen: {autoSummary.semanas_objetivo} objetivo, {autoSummary.semanas_creadas} creadas,
-                {" "}
-                {autoSummary.semanas_actualizadas} actualizadas.
+            <div className="mt-4 glass-soft border border-[var(--color-surface-border)] rounded-xl p-4 text-sm">
+              <p className="font-bold text-[var(--primary-50)] mb-1">
+                Resumen de generacion
               </p>
-              <p>
-                Asignaciones: {autoSummary.asignaciones_creadas} creadas, {autoSummary.asignaciones_reemplazadas}
-                {" "}
-                reemplazadas, {autoSummary.asignaciones_omitidas} omitidas.
-              </p>
-              <p>Conflictos reportados: {autoSummary.conflictos.length}</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[var(--primary-400)]">
+                <p>Semanas objetivo: <span className="text-[var(--primary-200)] font-semibold">{autoSummary.semanas_objetivo}</span></p>
+                <p>Asignaciones creadas: <span className="text-emerald-400 font-semibold">{autoSummary.asignaciones_creadas}</span></p>
+                <p>Semanas creadas: <span className="text-[var(--primary-200)] font-semibold">{autoSummary.semanas_creadas}</span></p>
+                <p>Asignaciones reemplazadas: <span className="text-amber-400 font-semibold">{autoSummary.asignaciones_reemplazadas}</span></p>
+                <p>Semanas actualizadas: <span className="text-[var(--primary-200)] font-semibold">{autoSummary.semanas_actualizadas}</span></p>
+                <p>Conflictos: <span className="text-rose-400 font-semibold">{autoSummary.conflictos.length}</span></p>
+              </div>
             </div>
           )}
         </form>
       )}
 
       {selectedWeek && (
-        <p className="rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700">
-          {formatWeek(selectedWeek)}
-        </p>
+        <div className="glass-chip px-3 py-2 text-sm font-bold inline-flex">
+          {formatWeekLabelWithoutNumber(selectedWeek)}
+        </div>
       )}
 
-      <p className="text-sm text-slate-600">Semanas registradas: {weeks.length}</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">Semanas registradas: {weeks.length}</p>
 
       {weeks.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -430,13 +445,13 @@ export const WeeklyViewPage = () => {
               key={week.id}
               type="button"
               onClick={() => setSelectedWeekId(week.id)}
-              className={`h-11 rounded-xl border-2 px-4 text-sm font-semibold ${
+              className={`h-10 rounded-lg border px-4 text-xs font-bold transition-all shadow-sm ${
                 selectedWeekId === week.id
-                  ? "border-slate-800 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                  ? "bg-blue-500/20 border-blue-400/70 text-blue-200 shadow-lg"
+                  : "bg-[var(--color-surface-hover)] border-[var(--color-surface-border)] text-[var(--primary-400)] hover:text-white"
               }`}
             >
-              Semana {week.numero_semana}/{week.anio}
+              {formatWeekLabelWithoutNumber(week)}
             </button>
           ))}
         </div>
@@ -444,20 +459,31 @@ export const WeeklyViewPage = () => {
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         {dayOrder.map((day) => (
-          <article key={day} className="rounded-2xl border border-slate-300 bg-white/80 p-3">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{day}</h3>
-            <div className="mt-2 space-y-2">
+          <article key={day} className="panel p-3">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">{day}</h3>
+            <div className="mt-3 space-y-2">
               {groupedByDay[day].length === 0 && (
-                <p className="text-xs text-slate-500">Sin turno asignado</p>
+                <p className="text-xs text-[var(--primary-600)] italic">Sin turnos</p>
               )}
-              {groupedByDay[day].map((item) => (
-                <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2">
-                  <p className="text-sm font-semibold text-slate-900">{item.usuario_detalle?.nombre}</p>
-                  <p className="mono text-xs text-slate-600">
-                    {item.hora_inicio.slice(0, 5)} - {item.hora_fin.slice(0, 5)}
-                  </p>
-                </div>
-              ))}
+              {groupedByDay[day].map((item) => {
+                const isMine = item.usuario === user?.id;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`rounded-xl border px-3 py-3 shadow-sm transition ${
+                      isMine
+                        ? "border-blue-500/60 bg-blue-500/15 text-blue-100"
+                        : "border-slate-700 bg-slate-800/80 text-slate-100"
+                    }`}
+                  >
+                    <p className="text-sm font-bold leading-tight">{item.usuario_detalle?.nombre}</p>
+                    <p className="mt-1 text-[10px] font-medium opacity-70">
+                      {item.hora_inicio.slice(0, 5)} - {item.hora_fin.slice(0, 5)}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </article>
         ))}

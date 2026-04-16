@@ -83,8 +83,8 @@ export const CalendarPage = () => {
 
   return (
     <section className="glass-card float-in space-y-4 p-5">
-      <h2 className="text-xl font-bold text-slate-900">Google Calendar</h2>
-      <p className="text-sm text-slate-600">
+      <h2 className="text-xl font-bold">Google Calendar</h2>
+      <p className="text-sm text-[var(--primary-400)]">
         Conecta tu cuenta para crear y actualizar eventos de turno automaticamente al aceptar
         intercambios.
       </p>
@@ -134,7 +134,7 @@ export const CalendarPage = () => {
       </div>
 
       <form onSubmit={handleGoogleCallback} className="glass-panel grid gap-3 p-4 md:grid-cols-2">
-        <label className="block text-sm text-slate-700">
+        <label className="block text-sm text-[var(--primary-300)]">
           Code OAuth
           <input
             value={callbackForm.code}
@@ -147,7 +147,7 @@ export const CalendarPage = () => {
           />
         </label>
 
-        <label className="block text-sm text-slate-700">
+        <label className="block text-sm text-[var(--primary-300)]">
           State (opcional)
           <input
             value={callbackForm.state}

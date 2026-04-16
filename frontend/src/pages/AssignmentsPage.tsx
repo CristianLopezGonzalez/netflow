@@ -4,6 +4,8 @@ import type { FormEvent } from "react";
 import { api } from "../api";
 import { NoticeBanner } from "../components/common/NoticeBanner";
 import { WeekSelector } from "../components/common/WeekSelector";
+import CustomSelect from "../components/common/CustomSelect";
+import CustomTimePicker from "../components/common/CustomTimePicker";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import type { DiaSemana } from "../types";
@@ -253,7 +255,7 @@ export const AssignmentsPage = () => {
   if (!canManageAssignments) {
     return (
       <section className="glass-card float-in space-y-3 p-5">
-        <h2 className="text-xl font-bold text-slate-900">Asignaciones</h2>
+        <h2 className="text-xl font-bold">Asignaciones</h2>
         <NoticeBanner
           message="Solo admin o supervisor pueden crear o editar asignaciones."
           kind="info"
@@ -267,8 +269,8 @@ export const AssignmentsPage = () => {
       <article className="glass-card float-in space-y-4 p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Asignar turnos</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <h2 className="text-xl font-bold">Asignar turnos</h2>
+            <p className="mt-1 text-sm text-[var(--primary-400)]">
               Crea turnos por dia o semana y asignalos a trabajadores.
             </p>
           </div>
@@ -284,83 +286,69 @@ export const AssignmentsPage = () => {
         </div>
 
         {selectedWeek && (
-          <p className="rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700">
+          <div className="glass-chip px-3 py-2 text-sm font-bold">
             Semana seleccionada: {formatWeek(selectedWeek)}
-          </p>
+          </div>
         )}
 
-        <form className="space-y-4 rounded-2xl border-2 border-slate-300 bg-white/80 p-4" onSubmit={handleCreateAssignments}>
+        <form className="space-y-4 glass-panel p-4" onSubmit={handleCreateAssignments}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <label className="block text-sm text-slate-700">
+            <div className="block text-sm text-[var(--primary-300)]">
               Trabajador
-              <select
+              <CustomSelect
                 value={selectedUserId}
-                onChange={(event) => setSelectedUserId(event.target.value)}
-                className="mt-2 h-12 w-full rounded-xl border-2 border-slate-300 bg-white px-4 text-base font-medium"
-                required
-              >
-                <option value="">Selecciona usuario</option>
-                {availableUsers.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.nombre} ({entry.email})
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={(val) => setSelectedUserId(String(val))}
+                options={[
+                  { value: "", label: "Selecciona usuario" },
+                  ...availableUsers.map(entry => ({ value: entry.id, label: `${entry.nombre} (${entry.email})` }))
+                ]}
+                className="mt-2"
+              />
+            </div>
 
-            <label className="block text-sm text-slate-700">
+            <div className="block text-sm text-[var(--primary-300)]">
               Modo
-              <select
+              <CustomSelect
                 value={mode}
-                onChange={(event) => setMode(event.target.value as "dia" | "semana")}
-                className="mt-2 h-12 w-full rounded-xl border-2 border-slate-300 bg-white px-4 text-base font-medium"
-              >
-                <option value="dia">Dia</option>
-                <option value="semana">Semana</option>
-              </select>
-            </label>
+                onChange={(val) => setMode(val as "dia" | "semana")}
+                options={[
+                  { value: "dia", label: "Dia" },
+                  { value: "semana", label: "Semana" },
+                ]}
+                className="mt-2"
+              />
+            </div>
 
-            <label className="block text-sm text-slate-700">
+            <div className="block text-sm text-[var(--primary-300)]">
               Hora inicio
-              <input
-                type="time"
+              <CustomTimePicker
                 value={startHour}
-                onChange={(event) => setStartHour(event.target.value)}
-                className="mt-2 h-12 w-full rounded-xl border-2 border-slate-300 bg-white px-4 text-base font-medium"
-                required
+                onChange={setStartHour}
               />
-            </label>
+            </div>
 
-            <label className="block text-sm text-slate-700">
+            <div className="block text-sm text-[var(--primary-300)]">
               Hora fin
-              <input
-                type="time"
+              <CustomTimePicker
                 value={endHour}
-                onChange={(event) => setEndHour(event.target.value)}
-                className="mt-2 h-12 w-full rounded-xl border-2 border-slate-300 bg-white px-4 text-base font-medium"
-                required
+                onChange={setEndHour}
               />
-            </label>
+            </div>
 
             {mode === "dia" ? (
-              <label className="block text-sm text-slate-700">
+              <div className="block text-sm text-[var(--primary-300)]">
                 Dia
-                <select
+                <CustomSelect
                   value={selectedDay}
-                  onChange={(event) => setSelectedDay(event.target.value as DiaSemana)}
-                  className="mt-2 h-12 w-full rounded-xl border-2 border-slate-300 bg-white px-4 text-base font-medium"
-                >
-                  {dayOrder.map((day) => (
-                    <option key={day} value={day}>
-                      {day}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  onChange={(val) => setSelectedDay(val as DiaSemana)}
+                  options={dayOrder.map(day => ({ value: day, label: day }))}
+                  className="mt-2"
+                />
+              </div>
             ) : (
               <div className="xl:col-span-1">
-                <p className="text-sm text-slate-700">Dias de semana</p>
-                <div className="mt-1 flex flex-wrap gap-2">
+                <p className="text-sm text-[var(--primary-300)]">Dias de semana</p>
+                <div className="mt-2 flex flex-wrap gap-1">
                   {dayOrder.map((day) => {
                     const checked = selectedWeekDays.includes(day);
                     return (
@@ -368,13 +356,13 @@ export const AssignmentsPage = () => {
                         key={day}
                         type="button"
                         onClick={() => toggleWeekDay(day)}
-                        className={`h-10 rounded-xl border-2 px-4 text-sm font-semibold ${
+                        className={`h-8 rounded-lg border px-3 text-xs font-bold transition-all ${
                           checked
-                            ? "border-slate-800 bg-slate-900 text-white"
-                            : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                            ? "bg-[var(--primary-700)] border-[var(--primary-600)] text-white shadow-sm"
+                            : "bg-[var(--color-surface-hover)] border-[var(--color-surface-border)] text-[var(--primary-400)]"
                         }`}
                       >
-                        {day}
+                        {day.slice(0, 3)}
                       </button>
                     );
                   })}
@@ -383,18 +371,18 @@ export const AssignmentsPage = () => {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3 pt-2">
             <button
               type="submit"
               disabled={busy}
-              className="h-11 rounded-xl bg-teal-700 px-5 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+              className="glass-button glass-button-primary h-11 rounded-xl px-6 text-sm font-bold shadow-lg disabled:opacity-50"
             >
               {busy ? "Guardando..." : mode === "dia" ? "Asignar dia" : "Asignar semana"}
             </button>
             <button
               type="button"
               onClick={() => void reloadWeekDetail(selectedWeekId)}
-              className="h-11 rounded-xl border-2 border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700"
+              className="glass-button h-11 rounded-xl px-6 text-sm font-bold"
             >
               Refrescar lista
             </button>
@@ -408,51 +396,48 @@ export const AssignmentsPage = () => {
       </article>
 
       <article className="glass-card float-in space-y-4 p-5">
-        <h3 className="text-lg font-bold text-slate-900">Asignaciones de la semana seleccionada</h3>
+        <h3 className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--primary-500)]">Asignaciones de la semana seleccionada</h3>
 
         {sortedAssignments.length === 0 && (
-          <p className="text-sm text-slate-500">No hay asignaciones en esta semana.</p>
+          <p className="text-sm text-[var(--primary-600)] italic">No hay asignaciones en esta semana.</p>
         )}
 
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {sortedAssignments.map((assignment) => (
             <div
               key={assignment.id}
-              className="rounded-xl border border-slate-300 bg-white p-3 md:flex md:items-center md:justify-between md:gap-3"
+              className="panel p-3 border border-[var(--color-surface-border)] shadow-sm"
             >
-              <div className="mb-3 md:mb-0">
-                <p className="text-sm font-semibold text-slate-900">
+              <div className="mb-3">
+                <p className="text-sm font-bold text-[var(--primary-50)]">
                   {assignment.dia} · {assignment.hora_inicio.slice(0, 5)}-{assignment.hora_fin.slice(0, 5)}
                 </p>
-                <p className="text-xs text-slate-600">
+                <p className="text-[11px] font-medium text-[var(--primary-400)] mt-0.5">
                   Asignado a: {assignment.usuario_detalle?.nombre ?? assignment.usuario}
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <select
+              <div className="flex items-center gap-2">
+                <CustomSelect
                   value={assignmentDrafts[assignment.id] ?? assignment.usuario}
-                  onChange={(event) => {
-                    const nextUserId = event.target.value;
+                  onChange={(val) => {
+                    const nextUserId = String(val);
                     setAssignmentDrafts((current) => ({ ...current, [assignment.id]: nextUserId }));
                     void handleUpdateAssignmentUser(assignment.id, nextUserId, assignment.usuario);
                   }}
+                  options={availableUsers.map(entry => ({ value: entry.id, label: entry.nombre }))}
                   disabled={inlineUpdatingId === assignment.id || deletingAssignmentId === assignment.id}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                >
-                  {availableUsers.map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.nombre}
-                    </option>
-                  ))}
-                </select>
+                  className="flex-1"
+                  hSize="h-9"
+                />
                 <button
                   type="button"
                   disabled={inlineUpdatingId === assignment.id || deletingAssignmentId === assignment.id}
                   onClick={() => void handleDeleteAssignment(assignment.id)}
-                  className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 disabled:opacity-50"
+                  className="glass-button glass-button-danger h-9 w-9 p-0 flex items-center justify-center rounded-lg disabled:opacity-50"
+                  title="Eliminar"
                 >
-                  {deletingAssignmentId === assignment.id ? "Desasignando..." : "Desasignar"}
+                  {deletingAssignmentId === assignment.id ? "..." : "×"}
                 </button>
               </div>
             </div>

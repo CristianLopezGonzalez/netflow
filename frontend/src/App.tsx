@@ -4,12 +4,11 @@ import { ProtectedRoute } from "./components/common/ProtectedRoute";
 import { AppShell } from "./components/layout/AppShell";
 import { AppDataProvider } from "./context/AppDataContext";
 import { useAuth } from "./context/AuthContext";
-import { BolsaPage } from "./pages/BolsaPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { ExchangesPage } from "./pages/ExchangesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PlanningCalendarPage } from "./pages/PlanningCalendarPage";
-import { PlanningGenerationPage } from "./pages/PlanningGenerationPage";
+import { AdminPage } from "./pages/AdminPage";
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -26,21 +25,21 @@ function App() {
             </AppDataProvider>
           }
         >
-          <Route index element={<Navigate to="/vistas" replace />} />
-          <Route path="/vistas" element={<PlanningCalendarPage />} />
-          <Route path="/generacion" element={<PlanningGenerationPage />} />
-          <Route path="/semanas" element={<Navigate to="/vistas" replace />} />
-          <Route path="/asignaciones" element={<Navigate to="/vistas" replace />} />
-          <Route path="/mis-tardes" element={<Navigate to="/vistas" replace />} />
+          <Route index element={<Navigate to="/calendario" replace />} />
+          <Route path="/calendario" element={<PlanningCalendarPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/generacion" element={<Navigate to="/admin" replace />} />
+          <Route path="/semanas" element={<Navigate to="/calendario" replace />} />
+          <Route path="/asignaciones" element={<Navigate to="/calendario" replace />} />
+          <Route path="/mis-tardes" element={<Navigate to="/calendario" replace />} />
           <Route path="/intercambios" element={<ExchangesPage />} />
-          <Route path="/bolsa" element={<BolsaPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
         </Route>
       </Route>
 
       <Route
         path="*"
-        element={<Navigate to={isAuthenticated ? "/vistas" : "/login"} replace />}
+        element={<Navigate to={isAuthenticated ? "/calendario" : "/login"} replace />}
       />
     </Routes>
   );

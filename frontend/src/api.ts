@@ -21,6 +21,8 @@ import type {
   SemanaRotacionResumen,
   TipoIntercambio,
   Usuario,
+  UsuarioCreatePayload,
+  UsuarioUpdatePayload,
 } from "./types";
 
 const authHttp = axios.create({
@@ -53,6 +55,30 @@ export const api = {
   async usuariosActivos(): Promise<Usuario[]> {
     const response = await http.get<Usuario[]>("/usuarios");
     return response.data;
+  },
+
+  async usuarios(): Promise<Usuario[]> {
+    const response = await http.get<Usuario[]>("/usuarios");
+    return response.data;
+  },
+
+  async usuario(id: string): Promise<Usuario> {
+    const response = await http.get<Usuario>(`/usuarios/${id}`);
+    return response.data;
+  },
+
+  async crearUsuario(payload: UsuarioCreatePayload): Promise<Usuario> {
+    const response = await http.post<Usuario>("/usuarios", payload);
+    return response.data;
+  },
+
+  async actualizarUsuario(id: string, payload: UsuarioUpdatePayload): Promise<Usuario> {
+    const response = await http.patch<Usuario>(`/usuarios/${id}`, payload);
+    return response.data;
+  },
+
+  async eliminarUsuario(id: string): Promise<void> {
+    await http.delete(`/usuarios/${id}`);
   },
 
   async semanas(): Promise<Semana[]> {

@@ -1,24 +1,27 @@
 interface NoticeBannerProps {
   message: string;
-  kind: "error" | "success" | "info";
+  kind: "error" | "success" | "info" | "warning";
 }
 
 const kindClasses: Record<NoticeBannerProps["kind"], string> = {
   error: "notice-banner--error",
   success: "notice-banner--success",
   info: "notice-banner--info",
+  warning: "notice-banner--warning",
 };
 
 const kindLabel: Record<NoticeBannerProps["kind"], string> = {
   error: "ERROR",
   success: "OK",
   info: "INFO",
+  warning: "AVISO",
 };
 
 const kindIcon: Record<NoticeBannerProps["kind"], string> = {
   error: "!",
   success: "OK",
   info: "i",
+  warning: "!",
 };
 
 export const NoticeBanner = ({ message, kind }: NoticeBannerProps) => {
