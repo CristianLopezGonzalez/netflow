@@ -16,6 +16,7 @@ export const LoginPage = () => {
   const [form, setForm] = useState({ nombre: "", email: "", password: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const isRegisterMode = mode === "register";
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -48,20 +49,26 @@ export const LoginPage = () => {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-10">
-      <section className="glass-card float-in w-full max-w-xl p-8 md:p-10">
-        <p className="mono text-sm font-semibold uppercase tracking-[0.2em] text-[color:var(--accent)]">Netflow</p>
-        <h1 className="gradient-title mt-3 text-4xl font-bold md:text-5xl">Gestor de turno de tarde</h1>
-        <p className="mt-3 text-sm text-slate-600 md:text-base">
+      <section className="glass-card float-in w-full max-w-xl p-7 md:p-9">
+        <p className="mono text-[11px] font-black uppercase tracking-[0.24em] text-[var(--primary-400)]">
+          Netflow
+        </p>
+        <h1 className="gradient-title mt-3 text-4xl font-bold leading-tight md:text-5xl">
+          Gestor de turno de tarde
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-[var(--primary-300)] md:text-base">
           Controla quien cubre cada tarde, valida intercambios entre companeros y lleva el saldo de
           bolsa de dias.
         </p>
 
-        <div className="glass-segment mt-7 inline-flex rounded-xl p-1">
+        <div className="mt-7 inline-flex w-full rounded-xl border border-[var(--color-surface-border)] bg-[#121418] p-1 sm:w-auto">
           <button
             type="button"
             onClick={() => setMode("login")}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              mode === "login" ? "glass-segment-button-active" : "glass-segment-button"
+            className={`rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-[0.12em] transition ${
+              mode === "login"
+                ? "bg-[var(--primary-700)] text-white shadow-md shadow-black/20"
+                : "text-[var(--primary-300)] hover:bg-white/5 hover:text-white"
             }`}
           >
             Iniciar sesion
@@ -69,8 +76,10 @@ export const LoginPage = () => {
           <button
             type="button"
             onClick={() => setMode("register")}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              mode === "register" ? "glass-segment-button-active" : "glass-segment-button"
+            className={`rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-[0.12em] transition ${
+              mode === "register"
+                ? "bg-[var(--primary-700)] text-white shadow-md shadow-black/20"
+                : "text-[var(--primary-300)] hover:bg-white/5 hover:text-white"
             }`}
           >
             Crear cuenta
@@ -78,35 +87,38 @@ export const LoginPage = () => {
         </div>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          {mode === "register" && (
-            <label className="block text-sm font-medium text-slate-700">
+          {isRegisterMode && (
+            <label className="block text-sm font-medium text-[var(--primary-200)]">
               Nombre
               <input
                 value={form.nombre}
                 onChange={(event) => setForm((current) => ({ ...current, nombre: event.target.value }))}
+                autoComplete="name"
                 required
                 className="glass-input mt-1 w-full rounded-xl px-3 py-2"
               />
             </label>
           )}
 
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-[var(--primary-200)]">
             Email
             <input
               type="email"
               value={form.email}
               onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+              autoComplete="email"
               required
               className="glass-input mt-1 w-full rounded-xl px-3 py-2"
             />
           </label>
 
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-[var(--primary-200)]">
             Password
             <input
               type="password"
               value={form.password}
               onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+              autoComplete={isRegisterMode ? "new-password" : "current-password"}
               required
               className="glass-input mt-1 w-full rounded-xl px-3 py-2"
             />
@@ -117,7 +129,7 @@ export const LoginPage = () => {
             disabled={busy}
             className="glass-button glass-button-primary w-full rounded-xl px-4 py-3 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? "Procesando..." : mode === "login" ? "Entrar" : "Registrar y entrar"}
+            {busy ? "Procesando..." : isRegisterMode ? "Registrar y entrar" : "Entrar"}
           </button>
         </form>
 

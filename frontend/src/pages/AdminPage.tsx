@@ -12,7 +12,6 @@ import type {
   Usuario,
   UsuarioCreatePayload,
   UsuarioUpdatePayload,
-  Semana,
 } from "../types";
 import { asErrorMessage } from "../utils/formatters";
 
@@ -22,6 +21,14 @@ const roleOptions = [
   { value: "supervisor", label: "Supervisor" },
   { value: "empleado", label: "Empleado" },
 ];
+
+const statusFilterOptions = [
+  { value: "all", label: "Todos" },
+  { value: "active", label: "Activos" },
+  { value: "inactive", label: "Inactivos" },
+];
+
+type UserStatusFilter = "all" | "active" | "inactive";
 
 const monthOptions = Array.from({ length: 12 }, (_, index) => ({
   value: (index + 1).toString(),
@@ -35,6 +42,20 @@ const stateOptions = [
   { value: "publicado", label: "Publicado" },
 ];
 
+const initialUserForm: {
+  nombre: string;
+  email: string;
+  password: string;
+  rol: RolUsuario;
+  activo: boolean;
+} = {
+  nombre: "",
+  email: "",
+  password: "",
+  rol: "empleado",
+  activo: true,
+};
+
 export const AdminPage = () => {
   const { user } = useAuth();
   const { users, weeks, reloadAll } = useAppData();
@@ -47,12 +68,13 @@ export const AdminPage = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<UserStatusFilter>("all");
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [scopeMode, setScopeMode] = useState<"mes" | "anio">("mes");
   const [year, setYear] = useState<string>(new Date().getFullYear().toString());
   const [month, setMonth] = useState<string>(`${new Date().getMonth() + 1}`);
   const [targetState, setTargetState] = useState<EstadoSemana>("borrador");
-  const [strategy, setStrategy] = useState<"replace" | "skip">("replace");
+  const strategy: "replace" | "skip" = "replace";
   const [userFormOpen, setUserFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const [formError, setFormError] = useState("");
@@ -62,23 +84,34 @@ export const AdminPage = () => {
   const [generationError, setGenerationError] = useState("");
   const [generationSummary, setGenerationSummary] = useState<null | { message: string; weeks: number }>(null);
 
-  const activeUsers = users.filter((item) => item.activo);
+  const [localUsers, setLocalUsers] = useState<Usuario[]>(users);
+
+  useEffect(() => {
+    setLocalUsers(users);
+  }, [users]);
+
+  const activeUsers = localUsers.filter((item) => item.activo);
   const employeeUsers = activeUsers.filter((item) => item.rol === "empleado");
 
   const filteredUsers = useMemo(() => {
-    return activeUsers.filter((item) => {
+    return localUsers.filter((item) => {
       const matchesSearch = [item.nombre, item.email].some((value) =>
         value.toLowerCase().includes(searchTerm.toLowerCase()),
       );
 
       const matchesRole = roleFilter === "all" || item.rol === roleFilter;
-      return matchesSearch && matchesRole;
+      const matchesStatus =
+        statusFilter === "all"
+          ? true
+          : statusFilter === "active"
+            ? item.activo
+            : !item.activo;
+
+      return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [activeUsers, roleFilter, searchTerm]);
+  }, [localUsers, roleFilter, searchTerm, statusFilter]);
 
   const selectedWeeks = weeks;
-  const weekSummary = `${selectedWeeks.length} semanas cargadas`;
-
   useEffect(() => {
     if (employeeUsers.length > 0 && selectedEmployeeIds.length === 0) {
       setSelectedEmployeeIds(employeeUsers.slice(0, 3).map((item) => item.id));
@@ -89,6 +122,7 @@ export const AdminPage = () => {
     setEditingUser(null);
     setFormError("");
     setFormSuccess("");
+    setUserForm(initialUserForm);
     setUserFormOpen(true);
   };
 
@@ -99,17 +133,11 @@ export const AdminPage = () => {
     setUserFormOpen(true);
   };
 
-  const [userForm, setUserForm] = useState<{
-    nombre: string;
-    email: string;
-    password: string;
-    rol: RolUsuario;
-    activo: boolean;
-  }>({ nombre: "", email: "", password: "", rol: "empleado", activo: true });
+  const [userForm, setUserForm] = useState(initialUserForm);
 
   useEffect(() => {
     if (!userFormOpen) {
-      setUserForm({ nombre: "", email: "", password: "", rol: "empleado", activo: true });
+      setUserForm(initialUserForm);
       setEditingUser(null);
     }
   }, [userFormOpen]);
@@ -135,9 +163,27 @@ export const AdminPage = () => {
     setFormBusy(true);
 
     try {
+      const normalizedEmail = userForm.email.trim().toLowerCase();
+      const isEditingMode = Boolean(editingUser);
+
+      const duplicateEmail = localUsers.find((item) => {
+        const sameEmail = item.email.trim().toLowerCase() === normalizedEmail;
+        if (!sameEmail) {
+          return false;
+        }
+        if (isEditingMode) {
+          return item.id !== editingUser?.id;
+        }
+        return true;
+      });
+
+      if (duplicateEmail) {
+        throw new Error("Ya existe un usuario con este email.");
+      }
+
       const payload: UsuarioCreatePayload | UsuarioUpdatePayload = {
         nombre: userForm.nombre.trim(),
-        email: userForm.email.trim().toLowerCase(),
+        email: normalizedEmail,
         rol: userForm.rol,
         activo: userForm.activo,
       };
@@ -146,21 +192,31 @@ export const AdminPage = () => {
         throw new Error("Nombre y email son obligatorios.");
       }
 
-      if (editingUser) {
+      if (isEditingMode && editingUser) {
         if (userForm.password.trim()) {
           payload.password = userForm.password.trim();
         }
-        await api.actualizarUsuario(editingUser.id, payload as UsuarioUpdatePayload);
+        const updatedUser = await api.actualizarUsuario(editingUser.id, payload as UsuarioUpdatePayload);
+        setLocalUsers((current) =>
+          current.map((item) => (item.id === updatedUser.id ? updatedUser : item)),
+        );
         setFormSuccess("Usuario actualizado correctamente.");
       } else {
         if (!userForm.password.trim()) {
           throw new Error("La contraseña es obligatoria para nuevos usuarios.");
         }
-        await api.crearUsuario(payload as UsuarioCreatePayload);
+        payload.password = userForm.password.trim();
+        const createdUser = await api.crearUsuario(payload as UsuarioCreatePayload);
+        setLocalUsers((current) => {
+          const next = [...current.filter((item) => item.id !== createdUser.id), createdUser];
+          return next.sort((left, right) => left.nombre.localeCompare(right.nombre));
+        });
         setFormSuccess("Usuario creado correctamente.");
       }
 
       await reloadAll();
+      setUserForm(initialUserForm);
+      setEditingUser(null);
       setUserFormOpen(false);
     } catch (error) {
       setFormError(asErrorMessage(error));
@@ -176,6 +232,7 @@ export const AdminPage = () => {
 
     try {
       await api.eliminarUsuario(userId);
+      setLocalUsers((current) => current.filter((item) => item.id !== userId));
       await reloadAll();
       setFormSuccess("Usuario eliminado.");
     } catch (error) {
@@ -242,17 +299,17 @@ export const AdminPage = () => {
   });
 
   return (
-    <div className="space-y-5">
-      <header className="space-y-5">
+    <div className="space-y-4 md:space-y-5">
+      <header className="space-y-4 md:space-y-5">
         <div className="space-y-3">
           <p className="text-sm uppercase tracking-[0.25em] text-[var(--primary-400)]">{pageTitle}</p>
-          <h1 className="text-3xl font-bold text-white">Gestión central</h1>
+          <h1 className="text-2xl font-bold text-white md:text-3xl">Gestión central</h1>
           <p className="text-sm leading-6 text-[var(--primary-300)]">
             Controla los trabajadores, supervisa el calendario y genera rotaciones desde un único panel.
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 md:gap-4">
           <article className="panel p-3">
             <p className="text-xs uppercase tracking-[0.3em] text-[var(--primary-400)]">Usuarios</p>
             <p className="mt-3 text-3xl font-bold text-white">{activeUsers.length}</p>
@@ -267,10 +324,9 @@ export const AdminPage = () => {
         </div>
       </header>
 
-      <section className="glass-card float-in p-5">
-        <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <div className="glass-panel p-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:items-start xl:gap-6">
+        <div className="glass-panel min-w-0 p-4 md:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-xl font-bold text-white">Gestionar trabajadores</h2>
               <p className="mt-1 text-sm text-[var(--primary-300)]">
@@ -279,36 +335,222 @@ export const AdminPage = () => {
                   : "Solo puedes ver los trabajadores. Pide a un admin cambios de roles o datos."}
               </p>
             </div>
-            <button
-              type="button"
-              disabled={!canManageUsers}
-              onClick={openCreateForm}
-              className="glass-button rounded-xl px-4 py-2 text-sm font-semibold bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-bright)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Nuevo trabajador
-            </button>
-          </div>
-
-          <div className="mt-5 grid gap-3 lg:grid-cols-3">
-            <input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Buscar nombre o email"
-              className="glass-input w-full px-4 py-3 text-sm"
-            />
-            <CustomSelect
-              value={roleFilter}
-              onChange={(value) => setRoleFilter(String(value))}
-              options={roleOptions}
-              placeholder="Filtrar rol"
-            />
-            <div className="rounded-xl border border-[var(--color-surface-border)] bg-[#121418] px-4 py-3 text-sm text-[var(--primary-300)]">
-              {filteredUsers.length} resultados
+            <div className="flex w-full flex-col gap-2 sm:w-auto">
+              <button
+                type="button"
+                disabled={!canManageUsers}
+                onClick={() => {
+                  if (userFormOpen) {
+                    setUserFormOpen(false);
+                    return;
+                  }
+                  openCreateForm();
+                }}
+                className="glass-button w-full rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-bright)] disabled:cursor-not-allowed disabled:opacity-50 md:hidden"
+              >
+                {userFormOpen ? "Ocultar solicitud" : "Nuevo trabajador"}
+              </button>
             </div>
           </div>
 
-          <div className="mt-6 overflow-x-auto rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)]">
-            <table className="min-w-[760px] text-left text-xs">
+          {canManageUsers && (
+            <div className={`mt-5 ${userFormOpen ? "block" : "hidden"} border-t border-[var(--color-surface-border)] pt-4 space-y-4 md:block`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary-400)]">
+                  {editingUser ? "Editando trabajador" : "Alta de trabajador"}
+                </p>
+                {editingUser && (
+                  <button
+                    type="button"
+                    onClick={openCreateForm}
+                    className="rounded-md border border-[var(--color-surface-border)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--primary-300)] transition hover:bg-white/5 hover:text-white"
+                  >
+                    Nuevo trabajador
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handleUserFormSubmit} className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="block text-sm text-[var(--primary-300)]">
+                    Nombre
+                    <input
+                      value={userForm.nombre}
+                      onChange={(event) => setUserForm((current) => ({ ...current, nombre: event.target.value }))}
+                      required
+                      className="glass-input mt-2 h-11 w-full rounded-md px-3"
+                    />
+                  </label>
+
+                  <label className="block text-sm text-[var(--primary-300)]">
+                    Email
+                    <input
+                      type="email"
+                      value={userForm.email}
+                      onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))}
+                      required
+                      className="glass-input mt-2 h-11 w-full rounded-md px-3"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <label className="block text-sm text-[var(--primary-300)]">
+                    Rol
+                    <CustomSelect
+                      value={userForm.rol}
+                      onChange={(value) => setUserForm((current) => ({ ...current, rol: value as RolUsuario }))}
+                      options={roleOptions.filter((item) => item.value !== "all")}
+                      placeholder="Rol"
+                      className="mt-2"
+                      hSize="h-11"
+                    />
+                  </label>
+                  <label className="block text-sm text-[var(--primary-300)]">
+                    Contraseña
+                    <input
+                      type="password"
+                      value={userForm.password}
+                      onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))}
+                      placeholder={editingUser ? "Dejar vacío para no cambiar" : "mínimo 8 caracteres"}
+                      className="glass-input mt-2 h-11 w-full rounded-md px-3"
+                    />
+                  </label>
+                  <label className="block text-sm text-[var(--primary-300)]">
+                    Estado
+                    <span className="mt-2 flex h-11 items-center gap-2 rounded-md border border-[var(--color-surface-border)] bg-[var(--color-background)] px-3">
+                      <input
+                        type="checkbox"
+                        checked={userForm.activo}
+                        onChange={(event) => setUserForm((current) => ({ ...current, activo: event.target.checked }))}
+                        className="h-4 w-4 rounded-[3px] border-[var(--color-surface-border)] bg-[var(--color-background)] accent-[var(--primary-500)]"
+                      />
+                      <span className="font-semibold text-[var(--primary-200)]">Activo</span>
+                    </span>
+                  </label>
+                </div>
+
+                {formError && <NoticeBanner message={formError} kind="error" />}
+                {formSuccess && <NoticeBanner message={formSuccess} kind="success" />}
+
+                <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:gap-3">
+                  <button
+                    type="submit"
+                    disabled={formBusy}
+                    className="glass-button w-full rounded-md px-5 py-3 font-semibold bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-bright)] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  >
+                    {formBusy ? "Guardando..." : editingUser ? "Actualizar" : "Crear usuario"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openCreateForm}
+                    className="w-full rounded-md border border-[var(--color-surface-border)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.15em] text-[var(--primary-300)] hover:bg-white/5 sm:w-auto"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          <div className="mt-6 border-t border-[var(--color-surface-border)] pt-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--primary-400)]">Listado de trabajadores</p>
+            <p className="mt-1 text-sm text-[var(--primary-300)]">Filtra por nombre, email o rol para encontrar usuarios rápido.</p>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <label className="block text-sm text-[var(--primary-300)]">
+              Buscar trabajador
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Nombre o email"
+                className="glass-input mt-2 h-11 w-full rounded-md px-3 text-sm"
+              />
+            </label>
+            <label className="block text-sm text-[var(--primary-300)]">
+              Filtrar rol
+              <CustomSelect
+                value={roleFilter}
+                onChange={(value) => setRoleFilter(String(value))}
+                options={roleOptions}
+                placeholder="Todos"
+                className="mt-2"
+                hSize="h-11"
+              />
+            </label>
+            <label className="block text-sm text-[var(--primary-300)]">
+              Filtrar estado
+              <CustomSelect
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(value as UserStatusFilter)}
+                options={statusFilterOptions}
+                placeholder="Todos"
+                className="mt-2"
+                hSize="h-11"
+              />
+            </label>
+          </div>
+
+          <div className="mt-6 space-y-3 md:hidden">
+            {filteredUsers.map((item) => (
+              <article
+                key={`mobile-${item.id}`}
+                className="rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-white">{item.nombre}</p>
+                    <p className="mt-1 break-all text-xs text-[var(--primary-400)]">{item.email}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                    <span className="inline-flex rounded-full border border-[var(--color-surface-border)] bg-[var(--color-background)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--primary-300)]">
+                      {item.rol}
+                    </span>
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
+                        item.activo
+                          ? "bg-emerald-100 text-emerald-900"
+                          : "bg-rose-100 text-rose-900"
+                      }`}
+                    >
+                      {item.activo ? "Activo" : "Inactivo"}
+                    </span>
+                  </div>
+                </div>
+
+                {canManageUsers ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEditForm(item)}
+                      className="rounded-xl border border-[var(--color-surface-border)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--primary-100)] hover:bg-white/10"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUser(item.id)}
+                      className="rounded-xl border border-rose-500 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-300 hover:bg-rose-500/10"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-xs uppercase tracking-[0.14em] text-[var(--primary-500)]">Solo lectura</p>
+                )}
+              </article>
+            ))}
+
+            {filteredUsers.length === 0 && (
+              <p className="rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] p-4 text-sm text-[var(--primary-400)]">
+                No hay resultados para los filtros actuales.
+              </p>
+            )}
+          </div>
+
+          <div className="mt-6 hidden overflow-x-auto rounded-2xl border border-[var(--color-surface-border)] bg-[var(--color-surface)] md:block">
+            <table className="w-full min-w-[680px] text-left text-xs lg:min-w-[760px]">
               <thead className="bg-white/5 text-[var(--primary-400)] uppercase tracking-[0.18em] text-[10px]">
                 <tr>
                   <th className="px-4 py-3">Nombre</th>
@@ -366,114 +608,18 @@ export const AdminPage = () => {
               </tbody>
             </table>
           </div>
-
-          {userFormOpen && (
-            <section className="mt-6 rounded-2xl border border-[var(--color-surface-border)] bg-[#0f1320] p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-white">{editingUser ? "Editar trabajador" : "Nuevo trabajador"}</h3>
-                  <p className="mt-1 text-sm text-[var(--primary-300)]">
-                    {editingUser
-                      ? "Actualiza el perfil y la información de acceso del trabajador."
-                      : "Crea un nuevo trabajador que pueda aparecer en la generación de turnos."}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setUserFormOpen(false)}
-                  className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--primary-400)] hover:text-white"
-                >
-                  Cerrar
-                </button>
-              </div>
-
-              <form onSubmit={handleUserFormSubmit} className="mt-6 space-y-4">
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <label className="block text-sm text-[var(--primary-300)]">
-                    Nombre
-                    <input
-                      value={userForm.nombre}
-                      onChange={(event) => setUserForm((current) => ({ ...current, nombre: event.target.value }))}
-                      required
-                      className="glass-input mt-2 w-full rounded-xl px-4 py-3"
-                    />
-                  </label>
-
-                  <label className="block text-sm text-[var(--primary-300)]">
-                    Email
-                    <input
-                      type="email"
-                      value={userForm.email}
-                      onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))}
-                      required
-                      className="glass-input mt-2 w-full rounded-xl px-4 py-3"
-                    />
-                  </label>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <CustomSelect
-                    value={userForm.rol}
-                    onChange={(value) => setUserForm((current) => ({ ...current, rol: value as RolUsuario }))}
-                    options={roleOptions.filter((item) => item.value !== "all")}
-                    placeholder="Rol"
-                  />
-                  <label className="block text-sm text-[var(--primary-300)]">
-                    Contraseña
-                    <input
-                      type="password"
-                      value={userForm.password}
-                      onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))}
-                      placeholder={editingUser ? "Dejar vacío para no cambiar" : "mínimo 8 caracteres"}
-                      className="glass-input mt-2 w-full rounded-xl px-4 py-3"
-                    />
-                  </label>
-                  <label className="flex items-center gap-3 text-sm text-[var(--primary-300)]">
-                    <input
-                      type="checkbox"
-                      checked={userForm.activo}
-                      onChange={(event) => setUserForm((current) => ({ ...current, activo: event.target.checked }))}
-                      className="h-4 w-4 rounded border-[var(--color-surface-border)] bg-[#121418] text-[var(--primary-400)] focus:ring-[var(--primary-500)]"
-                    />
-                    Activo
-                  </label>
-                </div>
-
-                {formError && <NoticeBanner message={formError} kind="error" />}
-                {formSuccess && <NoticeBanner message={formSuccess} kind="success" />}
-
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <button
-                    type="submit"
-                    disabled={formBusy}
-                    className="glass-button rounded-xl px-5 py-3 font-semibold bg-[var(--color-surface-hover)] hover:bg-[var(--color-surface-bright)] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {formBusy ? "Guardando..." : editingUser ? "Actualizar" : "Crear usuario"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUserFormOpen(false)}
-                    className="rounded-xl border border-[var(--color-surface-border)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.15em] text-[var(--primary-300)] hover:bg-white/5"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
         </div>
 
-        <aside className="glass-panel p-5">
+        <aside className="glass-panel min-w-0 p-4 md:p-5 xl:self-start">
           <div className="mb-6">
-            <p className="text-sm uppercase tracking-[0.25em] text-[var(--primary-400)]">Generación</p>
-            <h2 className="mt-3 text-2xl font-bold text-white">Rotación intuitiva</h2>
+            <h2 className="text-2xl font-bold text-white">Rotación intuitiva</h2>
             <p className="mt-2 text-sm text-[var(--primary-300)]">
               Configura el alcance y las personas clave. El sistema generará la rotación para el equipo.
             </p>
           </div>
 
           <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
               <button
                 type="button"
                 onClick={() => setScopeMode("mes")}
@@ -498,7 +644,7 @@ export const AdminPage = () => {
               </button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <CustomSelect
                 value={year}
                 onChange={(value) => setYear(String(value))}
@@ -524,7 +670,7 @@ export const AdminPage = () => {
 
             <div className="panel p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[var(--primary-400)]">Equipo</p>
-              <div className="mt-3 grid gap-3 max-h-52 overflow-auto">
+              <div className="mt-3 space-y-2.5 max-h-64 overflow-y-auto pr-1">
                 {employeeUsers.length > 0 ? (
                   employeeUsers.map((employee) => (
                     <button
@@ -537,13 +683,13 @@ export const AdminPage = () => {
                           : "bg-[var(--color-surface)] border-[var(--color-surface-border)] text-[var(--primary-300)] hover:border-white/20 hover:bg-white/5"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <span>{employee.nombre}</span>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium text-[var(--primary-100)]">{employee.nombre}</span>
                         {selectedEmployeeIds.includes(employee.id) && (
                           <span className="shrink-0 rounded-full bg-[var(--color-surface)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--primary-200)]">Seleccionado</span>
                         )}
                       </div>
-                      <span className="mt-2 block text-[11px] text-[var(--primary-500)]">{employee.email}</span>
+                      <span className="mt-2 block break-all text-[11px] text-[var(--primary-500)]">{employee.email}</span>
                     </button>
                   ))
                 ) : (
@@ -578,8 +724,7 @@ export const AdminPage = () => {
             </div>
           </div>
         </aside>
-      </div>
-    </section>
+      </section>
   </div>
   );
 };
