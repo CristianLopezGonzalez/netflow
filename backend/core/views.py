@@ -169,9 +169,15 @@ class UsuarioDetailView(APIView):
 
 		if usuario.id == request.user.id:
 			return Response(
-				{"detail": "No puedes desactivar tu propio usuario."},
+				{"detail": "No puedes desactivar ni eliminar tu propio usuario."},
 				status=status.HTTP_400_BAD_REQUEST,
 			)
+
+		modo = request.query_params.get("modo", "").strip().lower()
+		if modo == "eliminar":
+			_require_roles(request.user, {"admin"})
+			usuario.delete()
+			return Response(status=status.HTTP_204_NO_CONTENT)
 
 		usuario.activo = False
 		usuario.is_active = False

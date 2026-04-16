@@ -80,6 +80,8 @@ export const AdminPage = () => {
   const [formError, setFormError] = useState("");
   const [formBusy, setFormBusy] = useState(false);
   const [formSuccess, setFormSuccess] = useState("");
+  const [deleteTargetUser, setDeleteTargetUser] = useState<Usuario | null>(null);
+  const [deleteBusyAction, setDeleteBusyAction] = useState<"deactivate" | "delete" | null>(null);
   const [generationBusy, setGenerationBusy] = useState(false);
   const [generationError, setGenerationError] = useState("");
   const [generationSummary, setGenerationSummary] = useState<null | { message: string; weeks: number }>(null);
@@ -225,18 +227,59 @@ export const AdminPage = () => {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const requestDeleteUser = (userToDelete: Usuario) => {
     if (!canManageUsers) return;
-    const confirmed = window.confirm("¿Eliminar este usuario? Esta acción no se puede deshacer.");
-    if (!confirmed) return;
+    setDeleteTargetUser(userToDelete);
+  };
+
+  const closeDeleteDialog = () => {
+    if (deleteBusyAction) return;
+    setDeleteTargetUser(null);
+  };
+
+  const confirmDeactivateUser = async () => {
+    if (!canManageUsers || !deleteTargetUser) return;
+
+    setDeleteBusyAction("deactivate");
+    setFormError("");
+    setFormSuccess("");
 
     try {
-      await api.eliminarUsuario(userId);
-      setLocalUsers((current) => current.filter((item) => item.id !== userId));
+      await api.eliminarUsuario(deleteTargetUser.id);
+      setLocalUsers((current) =>
+        current.map((item) =>
+          item.id === deleteTargetUser.id
+            ? { ...item, activo: false }
+            : item,
+        ),
+      );
       await reloadAll();
-      setFormSuccess("Usuario eliminado.");
+      setFormSuccess("Usuario desactivado.");
+      setDeleteTargetUser(null);
     } catch (error) {
       setFormError(asErrorMessage(error));
+    } finally {
+      setDeleteBusyAction(null);
+    }
+  };
+
+  const confirmHardDeleteUser = async () => {
+    if (!canManageUsers || !deleteTargetUser) return;
+
+    setDeleteBusyAction("delete");
+    setFormError("");
+    setFormSuccess("");
+
+    try {
+      await api.eliminarUsuarioDefinitivo(deleteTargetUser.id);
+      setLocalUsers((current) => current.filter((item) => item.id !== deleteTargetUser.id));
+      await reloadAll();
+      setFormSuccess("Usuario eliminado definitivamente.");
+      setDeleteTargetUser(null);
+    } catch (error) {
+      setFormError(asErrorMessage(error));
+    } finally {
+      setDeleteBusyAction(null);
     }
   };
 
@@ -530,7 +573,7 @@ export const AdminPage = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDeleteUser(item.id)}
+                      onClick={() => requestDeleteUser(item)}
                       className="rounded-xl border border-rose-500 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-300 hover:bg-rose-500/10"
                     >
                       Eliminar
@@ -591,7 +634,7 @@ export const AdminPage = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteUser(item.id)}
+                            onClick={() => requestDeleteUser(item)}
                             className="rounded-xl border border-rose-500 px-3 py-1 text-[11px] uppercase tracking-[0.15em] text-rose-300 hover:bg-rose-500/10"
                           >
                             Eliminar
@@ -608,6 +651,59 @@ export const AdminPage = () => {
               </tbody>
             </table>
           </div>
+
+          {deleteTargetUser && (
+            <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+              <button
+                type="button"
+                aria-label="Cerrar confirmación"
+                onClick={closeDeleteDialog}
+                className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-user-dialog-title"
+                aria-describedby="delete-user-dialog-description"
+                className="relative w-full max-w-md rounded-2xl border border-[var(--color-surface-border)] bg-[rgba(28,30,34,0.95)] p-5 shadow-2xl backdrop-blur-xl"
+              >
+                <p id="delete-user-dialog-title" className="text-lg font-bold text-[var(--primary-50)]">
+                  Gestionar baja de usuario
+                </p>
+                <p id="delete-user-dialog-description" className="mt-2 text-sm text-[var(--primary-300)]">
+                  Selecciona la acción para <span className="font-semibold text-[var(--primary-100)]">{deleteTargetUser.nombre}</span>.
+                  Puedes desactivar para conservar historial o eliminar definitivamente.
+                </p>
+
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={closeDeleteDialog}
+                    disabled={Boolean(deleteBusyAction)}
+                    className="glass-button rounded-md px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void confirmDeactivateUser()}
+                    disabled={Boolean(deleteBusyAction)}
+                    className="glass-button rounded-md px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                  >
+                    {deleteBusyAction === "deactivate" ? "Desactivando..." : "Desactivar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void confirmHardDeleteUser()}
+                    disabled={Boolean(deleteBusyAction)}
+                    className="glass-button glass-button-danger rounded-md px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                  >
+                    {deleteBusyAction === "delete" ? "Eliminando..." : "Eliminar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <aside className="glass-panel min-w-0 p-4 md:p-5 xl:self-start">

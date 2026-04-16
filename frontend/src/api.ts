@@ -81,6 +81,10 @@ export const api = {
     await http.delete(`/usuarios/${id}`);
   },
 
+  async eliminarUsuarioDefinitivo(id: string): Promise<void> {
+    await http.delete(`/usuarios/${id}?modo=eliminar`);
+  },
+
   async semanas(): Promise<Semana[]> {
     const response = await http.get<Semana[]>("/semanas");
     return response.data;
